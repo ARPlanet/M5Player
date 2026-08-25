@@ -1,0 +1,25 @@
+{
+    "name": "Module5.Player",
+    "rootNamespace": "Module5",
+    "references": [
+        "GUID:ad2fb8c3c8a91c64a90f37d6cf449b4b",
+        "GUID:a42927d1d4a3b4cda9b076a7adecb9cc",
+        "GUID:75469ad4d38634e559750d17036d5f7c",
+        "GUID:15fc0a57446b3144c949da3e2b9737a9"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [
+        {
+            "name": "jp.hadashikick.vcontainer",
+            "expression": "",
+            "define": "MODULE5_USE_VCONTAINER"
+        }
+    ],
+    "noEngineReferences": false
+}
