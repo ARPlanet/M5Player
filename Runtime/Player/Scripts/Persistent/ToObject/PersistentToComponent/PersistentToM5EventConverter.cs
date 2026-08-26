@@ -117,15 +117,22 @@ namespace Module5.Player
         {
             if (value == null) return null;
 
+            if (value is JValue jValue)
+            {
+                value = jValue.Value;
+                if (value == null) return null;
+            }
+
             if (value is Guid guid)
             {
-                if (dataBase.TryGetInstance(guid, out var inst)) return inst.GUID;
+                if (dataBase != null && dataBase.TryGetInstance(guid, out var inst)) return inst.GUID;
                 return guid;
             }
 
             if (value is string s && Guid.TryParse(s, out Guid g))
             {
-                if (dataBase.TryGetInstance(g, out var inst)) return inst.GUID.ToString();
+                if (dataBase != null && dataBase.TryGetInstance(g, out var inst)) return inst.GUID.ToString();
+                return s;
             }
             else if (value is JObject jo)
             {
@@ -134,7 +141,7 @@ namespace Module5.Player
             }
             else if (value is IList list)
             {
-                var newList = new List<object>();
+                var newList = new List<object>(list.Count);
                 foreach (var item in list)
                 {
                     newList.Add(RemapValue(item, dataBase, cmdType));

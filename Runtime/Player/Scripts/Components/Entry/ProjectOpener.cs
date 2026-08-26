@@ -122,7 +122,7 @@ namespace Module5.Player
                 string projectPath = await downloader.DownloadAndExtract(driveId, progress =>
                 {
                     string progressMsg = $"下載中: {progress:P0}";
-                    Debug.Log($"[ProjectOpener] {progressMsg}");
+                    //Debug.Log($"[ProjectOpener] {progressMsg}");
                     UpdateStatus(progressMsg, Color.white);
                 });
 
