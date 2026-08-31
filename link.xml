@@ -1,4 +1,0 @@
-<linker>
-  <assembly fullname="Module5.Player" preserve="all" />
-  <assembly fullname="Module5.Player.Core" preserve="all" />
-</linker>
