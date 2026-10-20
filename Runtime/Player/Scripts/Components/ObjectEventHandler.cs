@@ -1,4 +1,4 @@
-﻿using Module5.Player;
+using Module5.Player;
 using System.Collections.Generic;
 using UnityEngine;
 using Module5.DI;
@@ -11,7 +11,7 @@ namespace Module5
 
         protected virtual void OnEnable()
         {
-            M5Event enableEvent = ObjectEvents.CreateEnableEvent(gameObject);
+            M5Event enableEvent = new ObjectEvents.EnableEvent(gameObject);
             EventManager.TriggerEvent(enableEvent);
         }
 
@@ -19,7 +19,7 @@ namespace Module5
         {
             if (!gameObject.activeInHierarchy) return;
 
-            M5Event enableEvent = ObjectEvents.CreateDisableEvent(gameObject);
+            M5Event enableEvent = new ObjectEvents.DisableEvent(gameObject);
             EventManager.TriggerEvent(enableEvent);
         }
     }

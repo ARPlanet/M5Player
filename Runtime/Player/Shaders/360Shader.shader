@@ -1,4 +1,4 @@
-﻿// Unity built-in shader source. Copyright (c) 2016 Unity Technologies. MIT license (see license.txt)
+// Unity built-in shader source. Copyright (c) 2016 Unity Technologies. MIT license (see license.txt)
 
 Shader "Unlit/360Shader" {
 	Properties{
@@ -10,6 +10,15 @@ Shader "Unlit/360Shader" {
 		[Enum(360 Degrees, 0, 180 Degrees, 1)] _ImageType("Image Type", Float) = 0
 		[Toggle] _MirrorOnBack("Mirror on Back", Float) = 0
 		[Enum(None, 0, Side by Side, 1, Over Under, 2)] _Layout("3D Layout", Float) = 0
+
+		[Header(Play Icon Decal Settings)]
+		_PlayIconTex("Play Icon (RGBA)", 2D) = "clear" {}
+		_PlayIconSize("Play Icon Size", Range(0.01, 1.0)) = 0.25
+		_PlayIconCurvature("Play Icon Curvature", Range(0.0, 3.0)) = 0.0
+		_ShowPlayIcon("Show Play Icon", Float) = 0.0
+		_DecalForward("Decal Forward", Vector) = (0, 0, 1, 0)
+		_DecalRight("Decal Right", Vector) = (1, 0, 0, 0)
+		_DecalUp("Decal Up", Vector) = (0, 1, 0, 0)
 	}
 
 		SubShader{
@@ -32,6 +41,13 @@ Shader "Unlit/360Shader" {
 				half4 _Tint;
 				half _Exposure;
 				float _Rotation;
+				sampler2D _PlayIconTex;
+				float _PlayIconSize;
+				float _PlayIconCurvature;
+				float _ShowPlayIcon;
+				float4 _DecalForward;
+				float4 _DecalRight;
+				float4 _DecalUp;
 		#ifndef _MAPPING_6_FRAMES_LAYOUT
 				bool _MirrorOnBack;
 				int _ImageType;
@@ -94,9 +110,11 @@ Shader "Unlit/360Shader" {
 					float4 faceXCoordLayouts : TEXCOORD3;
 					float4 faceYCoordLayouts : TEXCOORD4;
 					float4 faceZCoordLayouts : TEXCOORD5;
+					float3 worldDir : TEXCOORD6;
 		#else
 					float2 image180ScaleAndCutoff : TEXCOORD1;
 					float4 layout3DScaleAndOffset : TEXCOORD2;
+					float3 worldDir : TEXCOORD3;
 		#endif
 					UNITY_VERTEX_OUTPUT_STEREO
 				};
@@ -108,6 +126,7 @@ Shader "Unlit/360Shader" {
 					UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
 					float3 rotated = RotateAroundYInDegrees(v.vertex, _Rotation);
 					o.vertex = UnityObjectToClipPos(rotated);
+					o.worldDir = normalize(mul((float3x3)unity_ObjectToWorld, rotated));
 					o.texcoord = v.vertex.xyz;
 		#ifdef _MAPPING_6_FRAMES_LAYOUT
 					// layout and edgeSize are solely based on texture dimensions and can thus be precalculated in the vertex shader.
@@ -196,14 +215,34 @@ Shader "Unlit/360Shader" {
 					half3 c = DecodeHDR(tex, _MainTex_HDR);
 					c = c * _Tint.rgb * unity_ColorSpaceDouble.rgb;
 					c *= _Exposure;
+
+					if (_ShowPlayIcon > 0.5)
+					{
+						float3 worldDir = normalize(i.worldDir);
+						float dotFwd = dot(worldDir, _DecalForward.xyz);
+
+						if (dotFwd > 0.0)
+						{
+							float x = dot(worldDir, _DecalRight.xyz) / dotFwd;
+							float y = dot(worldDir, _DecalUp.xyz) / dotFwd;
+
+							float r2 = x * x + y * y;
+							float distortion = 1.0 + _PlayIconCurvature * r2 * 2.0;
+							float2 iconUV = (float2(x, y) * distortion) / max(0.001, _PlayIconSize) + float2(0.5, 0.5);
+
+							if (iconUV.x >= 0.0 && iconUV.x <= 1.0 && iconUV.y >= 0.0 && iconUV.y <= 1.0)
+							{
+								half4 iconColor = tex2D(_PlayIconTex, iconUV);
+								c = lerp(c, iconColor.rgb, iconColor.a);
+							}
+						}
+					}
+
 					return half4(c, 1);
 				}
 				ENDCG
 			}
 		}
 
-
-			CustomEditor "SkyboxPanoramicShaderGUI"
-					Fallback Off
-
+		Fallback Off
 }

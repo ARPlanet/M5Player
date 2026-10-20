@@ -4,8 +4,7 @@ Shader "Custom/glTFUnlitGather"
     {
         baseColorFactor ("Base Color", Color) = (1,1,1,1)
         baseColorTexture ("Base Color Texture", 2D) = "white" {}
-        [HideInInspector] _ScanY("Scan Y", Float) = 0
-        [HideInInspector] _FadeRange("Fade Range", Float) = 1.0
+        [HideInInspector] _Progress("Progress", Float) = 0.0
         [HideInInspector] _NoiseTiling("Noise Tiling", Float) = 1.0
         [HideInInspector] _BaseGrainPixelSize ("Base Grain Pixel Size", Float) = 50.0
         [HideInInspector] _NoiseTex("Noise Texture", 2D) = "white" {}
@@ -52,12 +51,12 @@ Shader "Custom/glTFUnlitGather"
             sampler2D _NoiseTex;
             float _NoiseTiling;
             float _BaseGrainPixelSize;
-            float _ScanY;
-            float _FadeRange;
+            float _Progress;
             float _ExpandScale;
             float _SpiralIntensity;
             float4 _EdgeColor;
             float _EdgeWidth;
+            float _IsScreenSpace;
 
             v2f vert (appdata v)
             {
@@ -69,7 +68,8 @@ Shader "Custom/glTFUnlitGather"
                 float3 relPos = worldPos.xyz - worldCenter;
                 o.relWorldPos = relPos;
 
-                float factor = saturate((worldPos.y - _ScanY) / _FadeRange);
+                // 全域消融進度 (0.0 = 完全實體顯示, 1.0 = 完全消融擴散)
+                float factor = saturate(_Progress);
                 o.distFactor = factor;
 
                 float rotation = factor * _SpiralIntensity * UNITY_PI;
@@ -79,7 +79,7 @@ Shader "Custom/glTFUnlitGather"
                 relPos.xz = mul(rot, relPos.xz);
 
                 float expandScale = 1.0 + factor * _ExpandScale;
-                relPos.xz *= expandScale;
+                relPos *= expandScale;
 
                 float3 finalWorldPos = worldCenter + relPos;
                 o.vertex = mul(UNITY_MATRIX_VP, float4(finalWorldPos, 1.0));
@@ -112,7 +112,7 @@ Shader "Custom/glTFUnlitGather"
                 float noiseVal = noiseX * blending.x + noiseY * blending.y + noiseZ * blending.z;
 
                 // --- 統一消融公式 ---
-                float dissolveStep = 1.1 + _EdgeWidth;
+                float dissolveStep = 1.0 + _EdgeWidth;
                 float currentThreshold = noiseVal - (i.distFactor * dissolveStep);
                 clip(currentThreshold);
 
@@ -120,7 +120,7 @@ Shader "Custom/glTFUnlitGather"
                 
                 // 邊緣發光
                 float edge = 1.0 - saturate(currentThreshold / (_EdgeWidth + 1e-5));
-                float edgeWeight = saturate(i.distFactor * 10.0) * saturate((1.0 - i.distFactor) * 20.0);
+                float edgeWeight = saturate(i.distFactor * 10.0) * saturate((1.0 - i.distFactor) * 10.0);
                 float edgeGlow = edge * edgeWeight;
 
                 // 強制覆蓋底色 + 加法亮度

@@ -9,6 +9,9 @@ namespace Module5.Player
     {
         public CreateObjectManagerData createObjectManagerData;
         public SceneManagerData sceneManagerData;
+        public BgmManagerData bgmManagerData;
+        [Header("環境設定")]
+        public EnvironmentSettings environmentSettings;
 
         public ProgressBarManager progressBarManager;
         public FadeController fadeController;
@@ -31,10 +34,17 @@ namespace Module5.Player
             .As<IPersistentToGameObjectConverterRegistry>();
 
             // 註冊持有的實例
+            builder.RegisterInstance(bgmManagerData ?? new BgmManagerData());
+            builder.Register<BgmManager>(Lifetime.Singleton).AsImplementedInterfaces();
+
+            builder.RegisterInstance(environmentSettings ?? new EnvironmentSettings());
+            builder.Register<EnvironmentManager>(Lifetime.Singleton).AsImplementedInterfaces();
+
             builder.Register<ProjectPathState>(Lifetime.Singleton).AsImplementedInterfaces();
             builder.Register<ProjectManager>(Lifetime.Singleton).AsImplementedInterfaces();
             builder.Register<ProjectAssetManager>(Lifetime.Singleton).AsImplementedInterfaces();
             builder.Register<AssetDataBaseManager>(Lifetime.Singleton).AsImplementedInterfaces();
+            builder.Register<GlobalAssetReferenceTracker>(Lifetime.Singleton).AsImplementedInterfaces();
             builder.Register<AssetLoaderManager>(Lifetime.Singleton).AsImplementedInterfaces();
             builder.Register<AnchorManager>(Lifetime.Singleton).AsImplementedInterfaces();
             builder.Register<ARAnchorTracker>(Lifetime.Singleton).AsImplementedInterfaces();
@@ -101,8 +111,14 @@ namespace Module5.Player
                 settings.Converters.Insert(0, new PersistentGameObjectConverter(container.Resolve<IPersistentToGameObjectConverterRegistry>()));
                 settings.Converters.Insert(0, new PersistentAnchorConverter(container.Resolve<IAnchorRegistry>()));
                 settings.Converters.Insert(0, new VariableConverter(container.Resolve<IVariableTypeRegistry>()));
+                settings.Converters.Insert(0, new PersistentTransformConverter());
                 JsonConvert.DefaultSettings = () => settings;
             });
+        }
+
+        protected virtual void Start()
+        {
+            M5VersionHelper.PrintAllModuleVersions();
         }
     }
 }

@@ -5,15 +5,18 @@ using UnityEngine;
 
 namespace Module5.Player
 {
+    [Command("Timer", "Start")]
     public class TimerStartActionStrategy : IActionStrategy
     {
+        public const string CommandKey = "timer_start";
+        string IActionStrategy.CommandKey => CommandKey;
         public const string ParamTarget = "target";
         public const string ParamIsForward = "isForward";
 
-        public Dictionary<string, object> DefaultParameters => new Dictionary<string, object>
+        public IReadOnlyDictionary<string, ParameterDefinition> ParameterDefinitions => new Dictionary<string, ParameterDefinition>
         {
-            { ParamTarget, string.Empty },
-            { ParamIsForward, true }
+            { ParamTarget, ParameterDefinition.Create<string>(string.Empty) },
+            { ParamIsForward, ParameterDefinition.Create<bool>(true) }
         };
 
         private readonly ITimerManager _timerManager;
@@ -23,24 +26,27 @@ namespace Module5.Player
             _timerManager = timerManager;
         }
 
-        public IEnumerator Execute(M5Command command)
+        public IEnumerator Execute(M5Command command, ActionExecutionContext context)
         {
             string target = (string)command.Parameters[ParamTarget];
             bool isForward = (bool)command.Parameters[ParamIsForward];
 
-            Debug.Log($"[Action {command.CommandType}][target={target}, isForward={isForward}]");
+            Debug.Log($"{context.LogPrefix}[Action {command.CommandType}][target={target}, isForward={isForward}]");
             _timerManager.StartTimer(target, isForward);
             yield break;
         }
     }
 
+    [Command("Timer", "Stop")]
     public class TimerStopActionStrategy : IActionStrategy
     {
+        public const string CommandKey = "timer_stop";
+        string IActionStrategy.CommandKey => CommandKey;
         public const string ParamTarget = "target";
 
-        public Dictionary<string, object> DefaultParameters => new Dictionary<string, object>
+        public IReadOnlyDictionary<string, ParameterDefinition> ParameterDefinitions => new Dictionary<string, ParameterDefinition>
         {
-            { ParamTarget, string.Empty }
+            { ParamTarget, ParameterDefinition.Create<string>(string.Empty) }
         };
 
         private readonly ITimerManager _timerManager;
@@ -50,24 +56,27 @@ namespace Module5.Player
             _timerManager = timerManager;
         }
 
-        public IEnumerator Execute(M5Command command)
+        public IEnumerator Execute(M5Command command, ActionExecutionContext context)
         {
             string target = (string)command.Parameters[ParamTarget];
-            Debug.Log($"[Action {command.CommandType}][target={target}]");
+            Debug.Log($"{context.LogPrefix}[Action {command.CommandType}][target={target}]");
             _timerManager.StopTimer(target);
             yield break;
         }
     }
 
+    [Command("Timer", "Add")]
     public class TimerAddActionStrategy : IActionStrategy
     {
+        public const string CommandKey = "timer_add";
+        string IActionStrategy.CommandKey => CommandKey;
         public const string ParamTarget = "target";
         public const string ParamTime = "time";
 
-        public Dictionary<string, object> DefaultParameters => new Dictionary<string, object>
+        public IReadOnlyDictionary<string, ParameterDefinition> ParameterDefinitions => new Dictionary<string, ParameterDefinition>
         {
-            { ParamTarget, string.Empty },
-            { ParamTime, DateTime.MinValue }
+            { ParamTarget, ParameterDefinition.Create<string>(string.Empty) },
+            { ParamTime, ParameterDefinition.Create<DateTime>(DateTime.MinValue) }
         };
 
         private readonly ITimerManager _timerManager;
@@ -77,25 +86,28 @@ namespace Module5.Player
             _timerManager = timerManager;
         }
 
-        public IEnumerator Execute(M5Command command)
+        public IEnumerator Execute(M5Command command, ActionExecutionContext context)
         {
             string target = (string)command.Parameters[ParamTarget];
             DateTime time = (DateTime)command.Parameters[ParamTime];
-            Debug.Log($"[Action {command.CommandType}][target={target}, time={time}]");
+            Debug.Log($"{context.LogPrefix}[Action {command.CommandType}][target={target}, time={time}]");
             _timerManager.AddTimer(target, time);
             yield break;
         }
     }
 
+    [Command("Timer", "Sub")]
     public class TimerSubActionStrategy : IActionStrategy
     {
+        public const string CommandKey = "timer_sub";
+        string IActionStrategy.CommandKey => CommandKey;
         public const string ParamTarget = "target";
         public const string ParamTime = "time";
 
-        public Dictionary<string, object> DefaultParameters => new Dictionary<string, object>
+        public IReadOnlyDictionary<string, ParameterDefinition> ParameterDefinitions => new Dictionary<string, ParameterDefinition>
         {
-            { ParamTarget, string.Empty },
-            { ParamTime, DateTime.MinValue }
+            { ParamTarget, ParameterDefinition.Create<string>(string.Empty) },
+            { ParamTime, ParameterDefinition.Create<DateTime>(DateTime.MinValue) }
         };
 
         private readonly ITimerManager _timerManager;
@@ -105,11 +117,11 @@ namespace Module5.Player
             _timerManager = timerManager;
         }
 
-        public IEnumerator Execute(M5Command command)
+        public IEnumerator Execute(M5Command command, ActionExecutionContext context)
         {
             string target = (string)command.Parameters[ParamTarget];
             DateTime time = (DateTime)command.Parameters[ParamTime];
-            Debug.Log($"[Action {command.CommandType}][target={target}, time={time}]");
+            Debug.Log($"{context.LogPrefix}[Action {command.CommandType}][target={target}, time={time}]");
             _timerManager.SubTimer(target, time);
             yield break;
         }

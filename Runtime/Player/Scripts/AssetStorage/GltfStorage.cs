@@ -7,6 +7,12 @@ using UnityEngine;
 namespace Module5.Player
 {
     [System.Serializable]
+    public class GltfAnimationInfo : SubAssetInfo
+    {
+        public WrapMode wrapMode = WrapMode.Default;
+    }
+
+    [System.Serializable]
     public class GltfMeta : AssetMeta
     {
         //public NameImportMethod nameImportMethod = NameImportMethod.OriginalUnique;
@@ -18,7 +24,7 @@ namespace Module5.Player
         public List<SubAssetInfo> materialInfos = new();
         public List<SubAssetInfo> textureInfos = new();
         public List<SubAssetInfo> meshInfos = new();
-        public List<SubAssetInfo> animationInfos = new();
+        public List<GltfAnimationInfo> animationInfos = new();
     }
 
     public class GltfStorage : AssetStorage<GltfMeta>
@@ -44,7 +50,7 @@ namespace Module5.Player
             }
         }
 
-        protected void DeserializeSubAssets(List<SubAssetInfo> list)
+        protected void DeserializeSubAssets<T>(List<T> list) where T : SubAssetInfo
         {
             if (list == null) return;
             foreach (var sub in list)
@@ -70,9 +76,26 @@ namespace Module5.Player
             GltfImportData gltfImportData = await gltfImporter.ImportAsync(new Uri(filePath, UriKind.Absolute), importSettings);
             if (gltfImportData?.gltfImport != null && !gltfImportData.gltfImport.LoadingError)
             {
+                ApplyAnimationSettings(gltfImportData.gltfImport, gltfMeta);
                 return gltfImportData;
             }
             return null;
+        }
+
+        public static void ApplyAnimationSettings(GltfImport gltfImport, GltfMeta gltfMeta)
+        {
+            if (gltfImport == null || gltfMeta?.animationInfos == null) return;
+            var clips = gltfImport.GetAnimationClips();
+            if (clips == null) return;
+            for (int i = 0; i < clips.Length && i < gltfMeta.animationInfos.Count; i++)
+            {
+                var clip = clips[i];
+                var animInfo = gltfMeta.animationInfos[i];
+                if (clip != null && animInfo != null)
+                {
+                    clip.wrapMode = animInfo.wrapMode;
+                }
+            }
         }
 
         public override async Task<AssetItem> CreateAssetItemAsync(string filePath, AssetMeta meta)
@@ -158,6 +181,23 @@ namespace Module5.Player
                         if (subGuid == Guid.Empty) continue;
                         InstanceContainer instance = AssetDataBaseManager.CreateInstanceContainer(subGuid);
                         instance.Obj = gltfImport.GetTexture(i);
+                        childs.Add(instance);
+                    }
+                }
+            }
+
+            if (gltfMeta.animationInfos != null)
+            {
+                var clips = gltfImport.GetAnimationClips();
+                if (clips != null)
+                {
+                    for (int i = 0; i < clips.Length; i++)
+                    {
+                        if (i >= gltfMeta.animationInfos.Count) break;
+                        Guid subGuid = gltfMeta.animationInfos[i].m_Guid;
+                        if (subGuid == Guid.Empty) continue;
+                        InstanceContainer instance = AssetDataBaseManager.CreateInstanceContainer(subGuid);
+                        instance.Obj = clips[i];
                         childs.Add(instance);
                     }
                 }

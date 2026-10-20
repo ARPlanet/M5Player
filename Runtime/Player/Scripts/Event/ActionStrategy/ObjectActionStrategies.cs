@@ -6,21 +6,24 @@ using UnityEngine;
 
 namespace Module5.Player
 {
+    [Command("Object", "Move")]
     public class ObjectMoveActionStrategy : IActionStrategy
     {
+        public const string CommandKey = "object_move";
+        string IActionStrategy.CommandKey => CommandKey;
         public const string ParamTarget = "target";
         public const string ParamToX = "toX";
         public const string ParamToY = "toY";
         public const string ParamToZ = "toZ";
         public const string ParamDuration = "duration";
 
-        public Dictionary<string, object> DefaultParameters => new Dictionary<string, object>
+        public IReadOnlyDictionary<string, ParameterDefinition> ParameterDefinitions => new Dictionary<string, ParameterDefinition>
         {
-            { ParamTarget, Guid.Empty.ToString() },
-            { ParamToX, 0f },
-            { ParamToY, 0f },
-            { ParamToZ, 0f },
-            { ParamDuration, 1f }
+            { ParamTarget, ParameterDefinition.CreateObject<Transform>() },
+            { ParamToX, ParameterDefinition.Create<float>(0f) },
+            { ParamToY, ParameterDefinition.Create<float>(0f) },
+            { ParamToZ, ParameterDefinition.Create<float>(0f) },
+            { ParamDuration, ParameterDefinition.Create<float>(1f) }
         };
 
         private readonly ITweenManager _tweenManager;
@@ -30,39 +33,41 @@ namespace Module5.Player
             _tweenManager = tweenManager;
         }
 
-        public IEnumerator Execute(M5Command command)
+        public IEnumerator Execute(M5Command command, ActionExecutionContext context)
         {
-            var target = command.Parameters[ParamTarget];
-            Transform targetTransform = target is GameObject go ? go.transform : (target as Transform);
-            if (targetTransform != null)
+            Transform target = (Transform)command.Parameters[ParamTarget];
+            if (target != null)
             {
                 float toX = (float)command.Parameters[ParamToX];
                 float toY = (float)command.Parameters[ParamToY];
                 float toZ = (float)command.Parameters[ParamToZ];
                 float duration = (float)command.Parameters[ParamDuration];
 
-                Debug.Log($"[Action {command.CommandType}][target={targetTransform.name}, to=({toX}, {toY}, {toZ}), duration={duration}]");
-                _tweenManager.MoveTo(targetTransform, new Vector3(toX, toY, toZ), duration);
+                Debug.Log($"{context.LogPrefix}[Action {command.CommandType}][target={target.name}, to=({toX}, {toY}, {toZ}), duration={duration}]");
+                _tweenManager.MoveTo(target, new Vector3(toX, toY, toZ), duration);
             }
             yield break;
         }
     }
 
+    [Command("Object", "Rotate")]
     public class ObjectRotateActionStrategy : IActionStrategy
     {
+        public const string CommandKey = "object_rotate";
+        string IActionStrategy.CommandKey => CommandKey;
         public const string ParamTarget = "target";
         public const string ParamToX = "toX";
         public const string ParamToY = "toY";
         public const string ParamToZ = "toZ";
         public const string ParamDuration = "duration";
 
-        public Dictionary<string, object> DefaultParameters => new Dictionary<string, object>
+        public IReadOnlyDictionary<string, ParameterDefinition> ParameterDefinitions => new Dictionary<string, ParameterDefinition>
         {
-            { ParamTarget, Guid.Empty.ToString() },
-            { ParamToX, 0f },
-            { ParamToY, 0f },
-            { ParamToZ, 0f },
-            { ParamDuration, 1f }
+            { ParamTarget, ParameterDefinition.CreateObject<Transform>() },
+            { ParamToX, ParameterDefinition.Create<float>(0f) },
+            { ParamToY, ParameterDefinition.Create<float>(0f) },
+            { ParamToZ, ParameterDefinition.Create<float>(0f) },
+            { ParamDuration, ParameterDefinition.Create<float>(1f) }
         };
 
         private readonly ITweenManager _tweenManager;
@@ -72,39 +77,42 @@ namespace Module5.Player
             _tweenManager = tweenManager;
         }
 
-        public IEnumerator Execute(M5Command command)
+        public IEnumerator Execute(M5Command command, ActionExecutionContext context)
         {
-            var target = command.Parameters[ParamTarget];
-            Transform targetTransform = target is GameObject go ? go.transform : (target as Transform);
-            if (targetTransform != null)
+            Transform target = (Transform)command.Parameters[ParamTarget];
+
+            if (target != null)
             {
                 float toX = (float)command.Parameters[ParamToX];
                 float toY = (float)command.Parameters[ParamToY];
                 float toZ = (float)command.Parameters[ParamToZ];
                 float duration = (float)command.Parameters[ParamDuration];
 
-                Debug.Log($"[Action {command.CommandType}][target={targetTransform.name}, to=({toX}, {toY}, {toZ}), duration={duration}]");
-                _tweenManager.RotateTo(targetTransform, new Vector3(toX, toY, toZ), duration);
+                Debug.Log($"{context.LogPrefix}[Action {command.CommandType}][target={target.name}, to=({toX}, {toY}, {toZ}), duration={duration}]");
+                _tweenManager.RotateTo(target, new Vector3(toX, toY, toZ), duration);
             }
             yield break;
         }
     }
 
+    [Command("Object", "Scale")]
     public class ObjectScaleActionStrategy : IActionStrategy
     {
+        public const string CommandKey = "object_scale";
+        string IActionStrategy.CommandKey => CommandKey;
         public const string ParamTarget = "target";
         public const string ParamToX = "toX";
         public const string ParamToY = "toY";
         public const string ParamToZ = "toZ";
         public const string ParamDuration = "duration";
 
-        public Dictionary<string, object> DefaultParameters => new Dictionary<string, object>
+        public IReadOnlyDictionary<string, ParameterDefinition> ParameterDefinitions => new Dictionary<string, ParameterDefinition>
         {
-            { ParamTarget, Guid.Empty.ToString() },
-            { ParamToX, 1f },
-            { ParamToY, 1f },
-            { ParamToZ, 1f },
-            { ParamDuration, 1f }
+            { ParamTarget, ParameterDefinition.CreateObject<Transform>() },
+            { ParamToX, ParameterDefinition.Create<float>(1f) },
+            { ParamToY, ParameterDefinition.Create<float>(1f) },
+            { ParamToZ, ParameterDefinition.Create<float>(1f) },
+            { ParamDuration, ParameterDefinition.Create<float>(1f) }
         };
 
         private readonly ITweenManager _tweenManager;
@@ -114,35 +122,37 @@ namespace Module5.Player
             _tweenManager = tweenManager;
         }
 
-        public IEnumerator Execute(M5Command command)
+        public IEnumerator Execute(M5Command command, ActionExecutionContext context)
         {
-            var target = command.Parameters[ParamTarget];
-            Transform targetTransform = target is GameObject go ? go.transform : (target as Transform);
-            if (targetTransform != null)
+            Transform target = (Transform)command.Parameters[ParamTarget];
+            if (target != null)
             {
                 float toX = (float)command.Parameters[ParamToX];
                 float toY = (float)command.Parameters[ParamToY];
                 float toZ = (float)command.Parameters[ParamToZ];
                 float duration = (float)command.Parameters[ParamDuration];
 
-                Debug.Log($"[Action {command.CommandType}][target={targetTransform.name}, to=({toX}, {toY}, {toZ}), duration={duration}]");
-                _tweenManager.ScaleTo(targetTransform, new Vector3(toX, toY, toZ), duration);
+                Debug.Log($"{context.LogPrefix}[Action {command.CommandType}][target={target.name}, to=({toX}, {toY}, {toZ}), duration={duration}]");
+                _tweenManager.ScaleTo(target, new Vector3(toX, toY, toZ), duration);
             }
             yield break;
         }
     }
 
+    [Command("Object", "Fade")]
     public class ObjectFadeActionStrategy : IActionStrategy
     {
+        public const string CommandKey = "object_fade";
+        string IActionStrategy.CommandKey => CommandKey;
         public const string ParamTargets = "targets";
         public const string ParamFade = "fade";
         public const string ParamDuration = "duration";
 
-        public Dictionary<string, object> DefaultParameters => new Dictionary<string, object>
+        public IReadOnlyDictionary<string, ParameterDefinition> ParameterDefinitions => new Dictionary<string, ParameterDefinition>
         {
-            { ParamTargets, new string[0] },
-            { ParamFade, FadeMode.FadeIn },
-            { ParamDuration, 1f }
+            { ParamTargets, ParameterDefinition.CreateObjectArray<GameObject>() },
+            { ParamFade, ParameterDefinition.Create<FadeMode>(FadeMode.FadeIn) },
+            { ParamDuration, ParameterDefinition.Create<float>(1f) }
         };
 
         private readonly IFadeController _fadeController;
@@ -152,23 +162,20 @@ namespace Module5.Player
             _fadeController = fadeController;
         }
 
-        public IEnumerator Execute(M5Command command)
+        public IEnumerator Execute(M5Command command, ActionExecutionContext context)
         {
             if (_fadeController == null) yield break;
 
             List<GameObject> targetGos = new List<GameObject>();
             if (command.Parameters.TryGetValue(ParamTargets, out object targetsObj) && targetsObj != null)
             {
-                if (targetsObj is IEnumerable enumerable && targetsObj is not string)
+                if (targetsObj is IEnumerable enumerable)
                 {
                     foreach (object item in enumerable)
                     {
                         if (item is GameObject itemGo) targetGos.Add(itemGo);
-                        else if (item is Component itemComp) targetGos.Add(itemComp.gameObject);
                     }
                 }
-                else if (targetsObj is GameObject go) targetGos.Add(go);
-                else if (targetsObj is Component comp) targetGos.Add(comp.gameObject);
             }
 
             if (targetGos.Count == 0) yield break;
@@ -176,7 +183,7 @@ namespace Module5.Player
             FadeMode fadeMode = (FadeMode)command.Parameters[ParamFade];
             float duration = (float)command.Parameters[ParamDuration];
 
-            Debug.Log($"[Action {command.CommandType}][targets={string.Join(", ", targetGos.Select(g => g.name))}, fadeMode={fadeMode}, duration={duration}]");
+            Debug.Log($"{context.LogPrefix}[Action {command.CommandType}][targets={string.Join(", ", targetGos.Select(g => g.name))}, fadeMode={fadeMode}, duration={duration}]");
             _fadeController.SetTargetObjects(targetGos.ToArray());
             _fadeController.duration = duration;
 
@@ -187,66 +194,78 @@ namespace Module5.Player
         }
     }
 
+    [Command("Object", "Hidden")]
     public class ObjectHiddenActionStrategy : IActionStrategy
     {
+        public const string CommandKey = "object_hidden";
+        string IActionStrategy.CommandKey => CommandKey;
         public const string ParamTarget = "target";
 
-        public Dictionary<string, object> DefaultParameters => new Dictionary<string, object>
+        public IReadOnlyDictionary<string, ParameterDefinition> ParameterDefinitions => new Dictionary<string, ParameterDefinition>
         {
-            { ParamTarget, Guid.Empty.ToString() }
+            { ParamTarget, ParameterDefinition.CreateObject<GameObject>() }
         };
 
-        public IEnumerator Execute(M5Command command)
+        public IEnumerator Execute(M5Command command, ActionExecutionContext context)
         {
             var targetGo = (GameObject)command.Parameters[ParamTarget];
             if (targetGo != null)
             {
-                Debug.Log($"[Action {command.CommandType}][target={targetGo.name}]");
+                Debug.Log($"{context.LogPrefix}[Action {command.CommandType}][target={targetGo.name}]");
                 targetGo.SetActive(false);
             }
             yield break;
         }
     }
 
+    [Command("Object", "Show")]
     public class ObjectShowActionStrategy : IActionStrategy
     {
+        public const string CommandKey = "object_show";
+        string IActionStrategy.CommandKey => CommandKey;
         public const string ParamTarget = "target";
 
-        public Dictionary<string, object> DefaultParameters => new Dictionary<string, object>
+        public IReadOnlyDictionary<string, ParameterDefinition> ParameterDefinitions => new Dictionary<string, ParameterDefinition>
         {
-            { ParamTarget, Guid.Empty.ToString() }
+            { ParamTarget, ParameterDefinition.CreateObject<GameObject>() }
         };
 
-        public IEnumerator Execute(M5Command command)
+        public IEnumerator Execute(M5Command command, ActionExecutionContext context)
         {
             var targetGo = (GameObject)command.Parameters[ParamTarget];
             if (targetGo != null)
             {
-                Debug.Log($"[Action {command.CommandType}][target={targetGo.name}]");
+                Debug.Log($"{context.LogPrefix}[Action {command.CommandType}][target={targetGo.name}]");
                 targetGo.SetActive(true);
             }
             yield break;
         }
     }
 
+    [Command("Object", "Click")]
     public class ObjectClickActionStrategy : IActionStrategy
     {
-        public Dictionary<string, object> DefaultParameters => new Dictionary<string, object>();
+        public const string CommandKey = "object_click";
+        string IActionStrategy.CommandKey => CommandKey;
+        public IReadOnlyDictionary<string, ParameterDefinition> ParameterDefinitions => new Dictionary<string, ParameterDefinition>();
 
-        public IEnumerator Execute(M5Command command)
+        public IEnumerator Execute(M5Command command, ActionExecutionContext context)
         {
-            Debug.Log($"[ObjectClick] Executing command: {command.CommandType}");
+            Debug.Log($"{context.LogPrefix}[ObjectClick] Executing command: {command.CommandType}");
             yield break;
         }
     }
 
+    [Command("Object", "Lock Transform")]
     public class ObjectLockTransformActionStrategy : IActionStrategy
     {
+        public const string CommandKey = "object_lock_transform";
+        string IActionStrategy.CommandKey => CommandKey;
         public const string ParamTarget = "target";
 
-        public Dictionary<string, object> DefaultParameters => new Dictionary<string, object>
+        public IReadOnlyDictionary<string, ParameterDefinition> ParameterDefinitions => new Dictionary<string, ParameterDefinition>
         {
-            { ParamTarget, Guid.Empty.ToString() }
+            { ParamTarget, ParameterDefinition.CreateObject<Transform>() }
         };
 
         private readonly IObjectInteractionService _interactionService;
@@ -256,22 +275,24 @@ namespace Module5.Player
             _interactionService = interactionService;
         }
 
-        public IEnumerator Execute(M5Command command)
+        public IEnumerator Execute(M5Command command, ActionExecutionContext context)
         {
-            var target = command.Parameters[ParamTarget];
-            Transform targetTransform = target is GameObject go ? go.transform : (target as Transform);
-            if (targetTransform != null)
+            Transform target = (Transform)command.Parameters[ParamTarget];
+            if (target != null)
             {
-                Debug.Log($"[Action {command.CommandType}][target={targetTransform.name}]");
-                _interactionService.StartOperation(targetTransform);
+                Debug.Log($"{context.LogPrefix}[Action {command.CommandType}][target={target.name}]");
+                _interactionService.StartOperation(target);
             }
             yield break;
         }
     }
 
+    [Command("Object", "Unlock Transform")]
     public class ObjectUnlockTransformActionStrategy : IActionStrategy
     {
-        public Dictionary<string, object> DefaultParameters => new Dictionary<string, object>();
+        public const string CommandKey = "object_unlock_transform";
+        string IActionStrategy.CommandKey => CommandKey;
+        public IReadOnlyDictionary<string, ParameterDefinition> ParameterDefinitions => new Dictionary<string, ParameterDefinition>();
 
         private readonly IObjectInteractionService _interactionService;
 
@@ -280,17 +301,20 @@ namespace Module5.Player
             _interactionService = interactionService;
         }
 
-        public IEnumerator Execute(M5Command command)
+        public IEnumerator Execute(M5Command command, ActionExecutionContext context)
         {
-            Debug.Log($"[Action {command.CommandType}]");
+            Debug.Log($"{context.LogPrefix}[Action {command.CommandType}]");
             _interactionService.EndOperation();
             yield break;
         }
     }
 
+    [Command("Object", "Apply Transform")]
     public class ObjectApplyTransformActionStrategy : IActionStrategy
     {
-        public Dictionary<string, object> DefaultParameters => new Dictionary<string, object>();
+        public const string CommandKey = "object_apply_transform";
+        string IActionStrategy.CommandKey => CommandKey;
+        public IReadOnlyDictionary<string, ParameterDefinition> ParameterDefinitions => new Dictionary<string, ParameterDefinition>();
 
         private readonly IObjectInteractionService _interactionService;
 
@@ -299,9 +323,9 @@ namespace Module5.Player
             _interactionService = interactionService;
         }
 
-        public IEnumerator Execute(M5Command command)
+        public IEnumerator Execute(M5Command command, ActionExecutionContext context)
         {
-            Debug.Log($"[Action {command.CommandType}]");
+            Debug.Log($"{context.LogPrefix}[Action {command.CommandType}]");
             _interactionService.SaveOperation();
             yield break;
         }

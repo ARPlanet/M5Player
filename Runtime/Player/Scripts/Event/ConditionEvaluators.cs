@@ -11,6 +11,43 @@ namespace Module5.Player
         public bool Evaluate(object sourceValue, object expectedValue) => Convert.ToBoolean(sourceValue) == Convert.ToBoolean(expectedValue);
     }
 
+    [ConditionOperator("Equals", true, typeof(Enum))]
+    public class EnumEqualsOperatorEvaluator : IConditionOperatorEvaluator
+    {
+        public const string Key = "enum_equals";
+        public string OperatorKey => Key;
+        public bool Evaluate(object sourceValue, object expectedValue) => EvaluateEnumEquals(sourceValue, expectedValue);
+
+        public static bool EvaluateEnumEquals(object sourceValue, object expectedValue)
+        {
+            if (sourceValue == null && expectedValue == null) return true;
+            if (sourceValue == null || expectedValue == null) return false;
+
+            if (sourceValue.Equals(expectedValue)) return true;
+
+            string sSource = sourceValue.ToString();
+            string sExpected = expectedValue.ToString();
+            if (string.Equals(sSource, sExpected, StringComparison.OrdinalIgnoreCase)) return true;
+
+            try
+            {
+                return Convert.ToInt64(sourceValue) == Convert.ToInt64(expectedValue);
+            }
+            catch
+            {
+                return false;
+            }
+        }
+    }
+
+    [ConditionOperator("Not Equals", true, typeof(Enum))]
+    public class EnumNotEqualsOperatorEvaluator : IConditionOperatorEvaluator
+    {
+        public const string Key = "enum_not_equals";
+        public string OperatorKey => Key;
+        public bool Evaluate(object sourceValue, object expectedValue) => !EnumEqualsOperatorEvaluator.EvaluateEnumEquals(sourceValue, expectedValue);
+    }
+
     [ConditionOperator("Equals", true, typeof(UnityEngine.Object))]
     public class ObjectEqualsOperatorEvaluator : IConditionOperatorEvaluator
     {
@@ -65,7 +102,7 @@ namespace Module5.Player
     {
         public const string Key = "string_equals";
         public string OperatorKey => Key;
-        public bool Evaluate(object sourceValue, object expectedValue) => string.Equals(sourceValue?.ToString(), expectedValue?.ToString());
+        public bool Evaluate(object sourceValue, object expectedValue) => string.Equals(ValueFormatter.FormatValueAsString(sourceValue), ValueFormatter.FormatValueAsString(expectedValue));
     }
 
     [ConditionOperator("Not Equals", typeof(string))]
@@ -73,7 +110,7 @@ namespace Module5.Player
     {
         public const string Key = "string_not_equals";
         public string OperatorKey => Key;
-        public bool Evaluate(object sourceValue, object expectedValue) => !string.Equals(sourceValue?.ToString(), expectedValue?.ToString());
+        public bool Evaluate(object sourceValue, object expectedValue) => !string.Equals(ValueFormatter.FormatValueAsString(sourceValue), ValueFormatter.FormatValueAsString(expectedValue));
     }
 
     [ConditionOperator("Equals", typeof(float), typeof(int), typeof(double))]

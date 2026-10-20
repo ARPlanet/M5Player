@@ -5,13 +5,16 @@ using UnityEngine;
 
 namespace Module5.Player
 {
+    [Command("Debug", "Log")]
     public class LogActionStrategy : IActionStrategy
     {
+        public const string CommandKey = "debug_log";
+        string IActionStrategy.CommandKey => CommandKey;
         public const string ParamMessage = "message";
 
-        public Dictionary<string, object> DefaultParameters => new Dictionary<string, object>
+        public IReadOnlyDictionary<string, ParameterDefinition> ParameterDefinitions => new Dictionary<string, ParameterDefinition>
         {
-            { ParamMessage, string.Empty }
+            { ParamMessage, ParameterDefinition.Create<string>(string.Empty) }
         };
 
         private IVariableManager _variableManager;
@@ -20,11 +23,10 @@ namespace Module5.Player
             _variableManager = variableManager;
         }
 
-        public IEnumerator Execute(M5Command command)
+        public IEnumerator Execute(M5Command command, ActionExecutionContext context)
         {
             string msg = (string)command.Parameters[ParamMessage];
-            Debug.Log($"[Action {command.CommandType}][message={msg}]");
-            Debug.Log(msg);
+            Debug.Log($"{context.LogPrefix}[Action {command.CommandType}][message={msg}]");
             yield break;
         }
     }

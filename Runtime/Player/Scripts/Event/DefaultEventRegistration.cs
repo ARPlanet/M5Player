@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using Module5.DI;
@@ -186,6 +186,8 @@ namespace Module5.Player
 
             // Register Operators
             registry.RegisterOperator(new BoolEqualsOperatorEvaluator());
+            registry.RegisterOperator(new EnumEqualsOperatorEvaluator());
+            registry.RegisterOperator(new EnumNotEqualsOperatorEvaluator());
 
             registry.RegisterOperator(new ObjectEqualsOperatorEvaluator());
             registry.RegisterOperator(new ObjectNotEqualsOperatorEvaluator());
@@ -216,9 +218,9 @@ namespace Module5.Player
         public static void RegisterDefaultCommands(ICommandRegistry registry, IObjectResolver container)
         {
             if (registry == null) return;
-            foreach (var descriptor in DefaultCommandDescriptors.All(container))
+            foreach (var strategy in DefaultCommandDescriptors.All(container))
             {
-                registry.RegisterCommand(descriptor);
+                registry.RegisterCommand(strategy);
             }
         }
     }

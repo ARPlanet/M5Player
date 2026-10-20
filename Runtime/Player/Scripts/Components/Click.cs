@@ -1,4 +1,4 @@
-﻿using Module5.Player;
+using Module5.Player;
 using System.Collections;
 using UnityEngine;
 using UnityEngine.Events;
@@ -9,8 +9,8 @@ namespace Module5.Player
     public class Click : MonoBehaviour, IPointerDownHandler, IPointerUpHandler, IPointerExitHandler, IDragHandler
     {
         //[Inject] IAssetDataBaseManager AssetDataBaseManager { get; set; }
-        [Inject] IEventManager EventManager { get; set; }
-        [Inject] IProgressBarManager ProgressBarManager {  get; set; }
+        [Inject] public IEventManager EventManager { get; set; }
+        [Inject] public IProgressBarManager ProgressBarManager {  get; set; }
 
         [Header("功能開關")]
         [Tooltip("是否啟用長壓功能。若關閉，則任何按壓放開後皆視為一般點擊。")]
@@ -20,6 +20,10 @@ namespace Module5.Player
         public float longTapThreshold = 0.8f;
         public float delayBeforeShow = 0.2f;
 
+        [Header("防連點設定")]
+        [Tooltip("點擊冷卻時間 (秒)，防止使用者過快連點觸發事件。若設為 0 則不限制。")]
+        public float clickCooldown = 0.3f;
+
         [Header("事件")]
         public UnityEvent onClick;
         public UnityEvent onLongTap;
@@ -27,12 +31,18 @@ namespace Module5.Player
         private Coroutine tapCoroutine;
         private float currentTimer = 0f;
         private bool isPointerDown = false;
+        private float lastClickTime = -100f;
+
+        public void ResetCooldown()
+        {
+            lastClickTime = -100f;
+        }
 
         // 當手指移動時，同步更新進度條位置
         public void OnDrag(PointerEventData eventData)
         {
             // 只有在啟用長壓且正在按壓時才更新進度條位置
-            if (enableLongTap && isPointerDown)
+            if (enableLongTap && isPointerDown && ProgressBarManager != null)
             {
                 ProgressBarManager.UpdatePosition(eventData.position);
             }
@@ -44,7 +54,7 @@ namespace Module5.Player
             isPointerDown = true;
 
             // 只有在啟用長壓時才初始化進度條位置
-            if (enableLongTap)
+            if (enableLongTap && ProgressBarManager != null)
             {
                 ProgressBarManager.UpdatePosition(eventData.position);
             }
@@ -62,17 +72,27 @@ namespace Module5.Player
                 // 3. 其他情況 -> 執行點擊
                 if (enableLongTap && currentTimer >= longTapThreshold)
                 {
-                    M5Event m5Event = ObjectEvents.CreateLongTapEvent(this, this);
-                    EventManager.TriggerEvent(m5Event);
+                    lastClickTime = Time.unscaledTime;
+                    M5Event m5Event = new ObjectEvents.LongTapEvent(this, this);
+                    if (EventManager != null) EventManager.TriggerEvent(m5Event);
 
                     onLongTap.Invoke();
                 }
                 else
                 {
-                    M5Event m5Event = ObjectEvents.CreateClickEvent(this, this);
-                    EventManager.TriggerEvent(m5Event);
+                    float now = Time.unscaledTime;
+                    if (clickCooldown <= 0f || now - lastClickTime >= clickCooldown)
+                    {
+                        lastClickTime = now;
+                        M5Event m5Event = new ObjectEvents.ClickEvent(this, this);
+                        if (EventManager != null) EventManager.TriggerEvent(m5Event);
 
-                    onClick.Invoke();
+                        onClick.Invoke();
+                    }
+                    else
+                    {
+                        Debug.Log($"[Click] 連點被忽略 (Cooldown: {clickCooldown}s): {gameObject.name}");
+                    }
                 }
             }
             StopExistingCoroutine();
@@ -91,11 +111,11 @@ namespace Module5.Player
                 currentTimer += Time.deltaTime;
 
                 // 只有在啟用長壓時，才處理 UI 進度條邏輯
-                if (enableLongTap && currentTimer >= delayBeforeShow)
+                if (enableLongTap && currentTimer >= delayBeforeShow && ProgressBarManager != null)
                 {
                     ProgressBarManager.Show();
                     float range = longTapThreshold - delayBeforeShow;
-                    float progress = (currentTimer - delayBeforeShow) / range;
+                    float progress = range > 0 ? (currentTimer - delayBeforeShow) / range : 1f;
                     ProgressBarManager.SetProgress(progress);
                 }
 

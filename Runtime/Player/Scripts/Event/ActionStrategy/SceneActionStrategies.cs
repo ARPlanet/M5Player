@@ -17,15 +17,18 @@ namespace Module5.Player
         void StartFadeOut();
     }
 
+    [Command("Scene", "Fade")]
     public class SceneFadeActionStrategy : IActionStrategy
     {
+        public const string CommandKey = "scene_fade";
+        string IActionStrategy.CommandKey => CommandKey;
         public const string ParamFade = "fade";
         public const string ParamDuration = "duration";
 
-        public Dictionary<string, object> DefaultParameters => new Dictionary<string, object>
+        public IReadOnlyDictionary<string, ParameterDefinition> ParameterDefinitions => new Dictionary<string, ParameterDefinition>
         {
-            { ParamFade, FadeMode.FadeIn },
-            { ParamDuration, 1f }
+            { ParamFade, ParameterDefinition.Create<FadeMode>(FadeMode.FadeIn) },
+            { ParamDuration, ParameterDefinition.Create<float>(1f) }
         };
 
         private readonly ISceneManager _sceneManager;
@@ -37,31 +40,31 @@ namespace Module5.Player
             _fadeController = fadeController;
         }
 
-        public IEnumerator Execute(M5Command command)
+        public IEnumerator Execute(M5Command command, ActionExecutionContext context)
         {
             FadeMode fadeMode = (FadeMode)command.Parameters[ParamFade];
             float duration = (float)command.Parameters[ParamDuration];
 
-            var root = _sceneManager.Root;
+            var root = _sceneManager.Root; // Scenes
             List<GameObject> targetObjects = new List<GameObject>();
             if (root != null)
             {
                 for (int i = 0; i < root.childCount; i++)
                 {
-                    Transform child = root.GetChild(i);
-                    if (!child.gameObject.activeSelf) continue;
-                    for (int j = 0; j < child.childCount; j++)
+                    Transform sceneRoot = root.GetChild(i); // Scene Root
+                    if (!sceneRoot.gameObject.activeSelf) continue;
+                    for (int j = 0; j < sceneRoot.childCount; j++)
                     {
-                        Transform subChild = child.GetChild(j);
-                        if (!subChild.gameObject.activeSelf) continue;
-                        targetObjects.Add(subChild.gameObject);
+                        Transform child = sceneRoot.GetChild(j);
+                        if (!child.gameObject.activeSelf) continue;
+                        targetObjects.Add(child.gameObject);
                     }
                 }
             }
 
             if (_fadeController != null)
             {
-                Debug.Log($"[Action {command.CommandType}][fadeMode={fadeMode}, duration={duration}]");
+                Debug.Log($"{context.LogPrefix}[Action {command.CommandType}][fadeMode={fadeMode}, duration={duration}]");
                 _fadeController.SetTargetObjects(targetObjects.ToArray());
                 _fadeController.duration = duration;
                 if (fadeMode == FadeMode.FadeIn)
@@ -78,13 +81,16 @@ namespace Module5.Player
         }
     }
 
+    [Command("Scene", "Change")]
     public class SceneChangeActionStrategy : IActionStrategy
     {
+        public const string CommandKey = "scene_change";
+        string IActionStrategy.CommandKey => CommandKey;
         public const string ParamScene = "scene";
 
-        public Dictionary<string, object> DefaultParameters => new Dictionary<string, object>
+        public IReadOnlyDictionary<string, ParameterDefinition> ParameterDefinitions => new Dictionary<string, ParameterDefinition>
         {
-            { ParamScene, System.Guid.Empty.ToString() }
+            { ParamScene, ParameterDefinition.CreateObject<SceneData>() }
         };
 
         private readonly ISceneManager _sceneManager;
@@ -96,36 +102,41 @@ namespace Module5.Player
             _assetLoaderManager = assetLoaderManager;
         }
 
-        public IEnumerator Execute(M5Command command)
+        public IEnumerator Execute(M5Command command, ActionExecutionContext context)
         {
             if (command.Parameters.TryGetValue(ParamScene, out object sceneObj) && sceneObj is SceneData sceneData && _sceneManager != null)
             {
-                Debug.Log($"[Action {command.CommandType}][scene={sceneData.Name}]");
-                var openTask = _sceneManager.OpenSceneAsync(sceneData);
-                while (!openTask.IsCompleted) yield return null;
+                Debug.Log($"{context.LogPrefix}[Action {command.CommandType}][scene={sceneData.Name}]");
+                _ = _sceneManager.OpenSceneAsync(sceneData);
             }
             yield break;
         }
     }
 
+    [Command("Scene", "Pause")]
     public class ScenePauseActionStrategy : IActionStrategy
     {
-        public Dictionary<string, object> DefaultParameters => new Dictionary<string, object>();
+        public const string CommandKey = "scene_pause";
+        string IActionStrategy.CommandKey => CommandKey;
+        public IReadOnlyDictionary<string, ParameterDefinition> ParameterDefinitions => new Dictionary<string, ParameterDefinition>();
 
-        public IEnumerator Execute(M5Command command)
+        public IEnumerator Execute(M5Command command, ActionExecutionContext context)
         {
-            Debug.Log($"[Action {command.CommandType}]");
+            Debug.Log($"{context.LogPrefix}[Action {command.CommandType}]");
             yield break;
         }
     }
 
+    [Command("Scene", "Resume")]
     public class SceneResumeActionStrategy : IActionStrategy
     {
-        public Dictionary<string, object> DefaultParameters => new Dictionary<string, object>();
+        public const string CommandKey = "scene_resume";
+        string IActionStrategy.CommandKey => CommandKey;
+        public IReadOnlyDictionary<string, ParameterDefinition> ParameterDefinitions => new Dictionary<string, ParameterDefinition>();
 
-        public IEnumerator Execute(M5Command command)
+        public IEnumerator Execute(M5Command command, ActionExecutionContext context)
         {
-            Debug.Log($"[Action {command.CommandType}]");
+            Debug.Log($"{context.LogPrefix}[Action {command.CommandType}]");
             yield break;
         }
     }

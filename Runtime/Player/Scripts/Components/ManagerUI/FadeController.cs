@@ -1,8 +1,7 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEngine.UI;
 using System.Collections;
 using System.Collections.Generic;
-using Module5.DI;
 namespace Module5.Player
 {
     public enum VoronoiType
@@ -24,37 +23,25 @@ namespace Module5.Player
         [Header("目標物件設定")]
         public List<GameObject> targetObjects = new List<GameObject>();
 
-        [Header("測試參數 (可直接在 Inspector 調整)")]
-        [Range(-5f, 5f)] public float testScanY = -1.0f;
-
-        [Header("掃描動畫設定")]
-        public bool useAutoBounds = true; // 新增：自動計算範圍
-        public float startY = -1.5f; // 手動設定起始值 (當 useAutoBounds = false 時使用)
-        public float endY = 2.0f;    // 手動設定結束值 (當 useAutoBounds = false 時使用)
+        [Header("動畫設定")]
         [SerializeField] private float _duration = 2.0f;
         public float duration { get => _duration; set => _duration = value; }
-
-        [Header("World 群組自適應設定 (3D / 世界 UI)")]
-        public float fadeRange = 0.0f; // 基礎漸變位移 (Offset)
-        public float fadeHeightRatio = 0.1f; // 漸變範圍佔高度比例 (X)
-
-        [Header("Screen 群組自適應設定 (螢幕 UI)")]
-        [Tooltip("螢幕空間使用像素座標。")]
-        public float screenFadeRange = 0.0f;
-        public float screenFadeHeightRatio = 0.1f; // 螢幕 UI 的高度比例 (X)
-
-        [Header("動態邊界縮放設定 (全域視覺統一)")]
-        public bool enableScreenBoundsScaling = true;
-        [Tooltip("全域消融顆粒在螢幕上的像素大小 (預設 50)。數值越大，顆粒越粗，無論 3D 還是 UI 皆同步。")]
-        public float baseGrainPixelSize = 50f;
-        public float noiseTilingMultiplier = 0.5f; // 密度隨高度增加而減小的系數
-        public float screenNoiseTilingMultiplier = 0.01f;
 
         [Header("效果表現設定")]
         public float expandScale = 1.0f;    // 消融時的擴散/縮放倍率
         public float spiralIntensity = 2.0f; // 消融時的旋轉強度
         [ColorUsage(true, true)] public Color edgeColor = new Color(0, 1, 1, 1); // 邊緣發光顏色
         [Range(0f, 0.5f)] public float edgeWidth = 0.1f; // 邊緣寬度
+        [Tooltip("全域消融顆粒在螢幕上的基準像素大小 (預設 50)。數值越大，顆粒越粗，無論 3D 還是 UI 皆同步。")]
+        public float baseGrainPixelSize = 50f;
+
+        [Header("UI 網格細分設定 (Tessellation)")]
+        [Tooltip("是否對 UI 物件啟用網格細分，使消融與旋轉位移呈現平滑曲面變形而非剛性四邊形")]
+        public bool enableUITessellation = true;
+        [Tooltip("水平細分格數 (建議 4 ~ 16)")]
+        [Range(1, 32)] public int uiSubdivisionsX = 8;
+        [Tooltip("垂直細分格數 (建議 4 ~ 16)")]
+        [Range(1, 32)] public int uiSubdivisionsY = 8;
 
         [Header("Noise 生成設定")]
         public NoiseMode noiseMode = NoiseMode.Particle;
@@ -89,33 +76,24 @@ namespace Module5.Player
             public Graphic graphic; // UI 用
             public Material[] originalMaterials;
             public Material[] fadeMatInstances;            // 3D 用：每個 Sub-mesh 的材質實例
-            public MaterialPropertyBlock[] propertyBlocks; // 只用於動態更新 _ScanY
+            public MaterialPropertyBlock[] propertyBlocks; // 用於動態更新 _Progress
             public Material uiMaterialInstance;            // UI 專用的材質實例
-            public float tilingMultiplier = 1f;            // 螢幕佔比專屬密度倍率
+            public UITessellator uiTessellator;            // UI 細分效果組件實例
+            public Vector4 uiCenter;                       // UI 自身中心點座標 (Canvas 本地座標 = UGUI 頂點 Object Space; xyz: 中心, w: 啟用標記)
+
+            // UI / 3D 空間資訊
+            public bool isScreen;
+            public RectTransform rectTransform;
+            public Transform canvasTransform;              // UGUI 頂點所在的 Object Space (Root Canvas，巢狀 Canvas 亦同)
         }
 
         private class FadeGroup
         {
             public List<FadeTargetInfo> targets = new List<FadeTargetInfo>();
-            public float minY = float.MaxValue;
-            public float maxY = float.MinValue;
-            public float height;
-            public float calcFadeRange;
-            public float calcNoiseTiling;
 
             public void Reset()
             {
                 targets.Clear();
-                minY = float.MaxValue;
-                maxY = float.MinValue;
-            }
-
-            public void UpdateCalcParams(float baseRange, float rangeMul, float tilingMul)
-            {
-                height = Mathf.Max(0.01f, maxY - minY);
-                calcFadeRange = baseRange + (height * rangeMul);
-                // calcNoiseTiling 的基底改為 1.0，因為各別物件的 tilingMultiplier 已在 SetupFadeTargets 計算並獨立應用
-                calcNoiseTiling = 1.0f / (1.0f + height * tilingMul);
             }
         }
 
@@ -131,13 +109,9 @@ namespace Module5.Player
             public float edgeWidth;
             public float baseGrainPixelSize;
 
-            public float fadeRange;
-            public float fadeHeightRatio;
-            public float noiseTilingMultiplier;
-
-            public float screenFadeRange;
-            public float screenFadeHeightRatio;
-            public float screenNoiseTilingMultiplier;
+            public bool enableUITessellation;
+            public int uiSubdivisionsX;
+            public int uiSubdivisionsY;
 
             public List<GameObject> targetObjects = new List<GameObject>();
             public FadeGroup worldGroup = new FadeGroup();
@@ -155,16 +129,18 @@ namespace Module5.Player
         [SerializeField] private Material _uiTextGatherMat;
         [SerializeField] private Material _uiImageGatherMat;
 
-        private static readonly int ScanYId = Shader.PropertyToID("_ScanY");
+        private static readonly int ProgressId = Shader.PropertyToID("_Progress");
         private static readonly int NoiseTexId = Shader.PropertyToID("_NoiseTex");
         private static readonly int NoiseTilingId = Shader.PropertyToID("_NoiseTiling");
-        private static readonly int NoiseTilingScreenId = Shader.PropertyToID("_NoiseTilingScreen");
         private static readonly int ExpandScaleId = Shader.PropertyToID("_ExpandScale");
         private static readonly int SpiralIntensityId = Shader.PropertyToID("_SpiralIntensity");
-        private static readonly int FadeRangeId = Shader.PropertyToID("_FadeRange");
         private static readonly int EdgeColorId = Shader.PropertyToID("_EdgeColor");
         private static readonly int EdgeWidthId = Shader.PropertyToID("_EdgeWidth");
         private static readonly int BaseGrainPixelSizeId = Shader.PropertyToID("_BaseGrainPixelSize");
+        private static readonly int ObjectCenterId = Shader.PropertyToID("_ObjectCenter");
+        private static readonly int IsScreenSpaceId = Shader.PropertyToID("_IsScreenSpace");
+
+        private static readonly Vector3[] _cornerBuffer = new Vector3[4];
 
 
         void Start()
@@ -220,36 +196,40 @@ namespace Module5.Player
             process.worldGroup.Reset();
             process.screenGroup.Reset();
 
+            // 強制刷新 Canvas / Layout，確保 Root Canvas 尺寸、Anchor、LayoutGroup 已計算完成
+            // 否則 GetWorldCorners 會取得舊的 rect，導致中心點隨 Anchor 偏移
+            Canvas.ForceUpdateCanvases();
+
             foreach (var obj in process.targetObjects)
             {
                 if (obj == null) continue;
 
-                // 1. 處理 3D Renderers (必然屬於 World Group)
+                // 1. 處理 3D Renderers (自動識別是否掛載於 Screen Canvas 或 Camera 底下)
                 Renderer[] renderers = obj.GetComponentsInChildren<Renderer>(true);
                 foreach (var r in renderers)
                 {
-                    var info = ProcessRenderer(r);
-                    process.worldGroup.targets.Add(info);
-                    process.worldGroup.minY = Mathf.Min(process.worldGroup.minY, r.bounds.min.y);
-                    process.worldGroup.maxY = Mathf.Max(process.worldGroup.maxY, r.bounds.max.y);
+                    bool isScreen = ResolveScreenSpace(r);
+                    var info = ProcessRenderer(r, isScreen);
+                    FadeGroup group = isScreen ? process.screenGroup : process.worldGroup;
+                    group.targets.Add(info);
                 }
 
                 // 2. 處理 UI Graphics
                 Graphic[] graphics = obj.GetComponentsInChildren<Graphic>(true);
-                Vector3[] corners = new Vector3[4];
                 foreach (var g in graphics)
                 {
-                    // 使用專案自定義的 UICanvas 來判斷 World / Screen
+                    // 判斷 World / Screen：
+                    // UICanvas 為專案業務邏輯最高真相來源：
+                    // - Screen: 螢幕 UI (Player 下為 ScreenSpaceCamera，Editor 下為貼於相機前模擬的特例)
+                    // - World: 3D 世界 UI (Player 與 Editor 下皆為 WorldSpaceCamera)
                     UICanvas uiCanvas = g.GetComponentInParent<UICanvas>(true);
                     bool isScreen = false;
-
                     if (uiCanvas != null)
                     {
                         isScreen = (uiCanvas.CanvasType == CanvasType.Screen);
                     }
                     else
                     {
-                        // 若無 UICanvas，回退至原生判斷或預設為 World
                         Canvas canvas = g.canvas;
                         if (canvas == null) canvas = g.GetComponentInParent<Canvas>(true);
                         isScreen = (canvas != null && (canvas.renderMode == RenderMode.ScreenSpaceOverlay || canvas.renderMode == RenderMode.ScreenSpaceCamera));
@@ -257,34 +237,96 @@ namespace Module5.Player
 
                     var info = ProcessGraphic(g, isScreen);
 
-                    // Shader 端已完整處理所有縮放邏輯（Screen Space 用像素座標，World Space 用 PPU）
-                    // C# 統一不傳遞預縮放係數
-                    info.tilingMultiplier = 1f;
+                    // 若啟用 UI 細分且為圖片 (Image / RawImage)，動態掛載 UITessellator
+                    if (process.enableUITessellation && (g is Image || g is RawImage))
+                    {
+                        var tess = g.gameObject.AddComponent<UITessellator>();
+                        tess.subdivisionsX = process.uiSubdivisionsX;
+                        tess.subdivisionsY = process.uiSubdivisionsY;
+                        info.uiTessellator = tess;
+                        g.SetVerticesDirty();
+                    }
 
                     FadeGroup group = isScreen ? process.screenGroup : process.worldGroup;
                     group.targets.Add(info);
 
-                    //Debug.Log($"[FadeController] UI Target: {g.name}, Classified: {(isScreen ? "SCREEN" : "WORLD")}");
-
-                    RectTransform rt = g.rectTransform;
-                    rt.GetWorldCorners(corners);
-                    foreach (var c in corners)
-                    {
-                        group.minY = Mathf.Min(group.minY, c.y);
-                        group.maxY = Mathf.Max(group.maxY, c.y);
-                    }
+                    ResolveUISpace(info, g, isScreen);
+                    RefreshUICenter(info);
+                    info.uiMaterialInstance.SetVector(ObjectCenterId, info.uiCenter);
                 }
             }
-
-            // 基於邊界計算自適應參數
-            process.worldGroup.UpdateCalcParams(process.fadeRange, process.fadeHeightRatio, process.noiseTilingMultiplier);
-            process.screenGroup.UpdateCalcParams(process.screenFadeRange, process.screenFadeHeightRatio, process.screenNoiseTilingMultiplier);
         }
 
-        private FadeTargetInfo ProcessRenderer(Renderer r)
+        /// <summary>
+        /// 解析 UI 所在的 Canvas (UGUI 頂點的 Object Space)
+        /// </summary>
+        private void ResolveUISpace(FadeTargetInfo info, Graphic g, bool isScreen)
+        {
+            info.isScreen = isScreen;
+            info.rectTransform = g.rectTransform;
+
+            Canvas canvas = g.canvas;
+            if (canvas == null) canvas = g.GetComponentInParent<Canvas>(true);
+
+            // UGUI 頂點 (含巢狀 Canvas) 皆以 Root Canvas 的矩陣繪製，
+            // 因此 Object Space = Root Canvas 本地座標，而非最近的巢狀 Canvas
+            Canvas root = canvas != null ? (canvas.rootCanvas != null ? canvas.rootCanvas : canvas) : null;
+            info.canvasTransform = root != null ? root.transform : null;
+        }
+
+        /// <summary>
+        /// 以 Canvas 本地座標計算 UI 幾何中心。
+        /// Canvas 本地座標與 Shader 中的 positionOS 同一空間，不受攝影機移動 / Canvas 世界位置影響。
+        /// </summary>
+        private static void RefreshUICenter(FadeTargetInfo info)
+        {
+            if (info.rectTransform == null || info.canvasTransform == null)
+            {
+                info.uiCenter = Vector4.zero; // w = 0：Shader 回退為 Object 原點
+                return;
+            }
+            info.rectTransform.GetWorldCorners(_cornerBuffer);
+            Vector3 worldCenter = (_cornerBuffer[0] + _cornerBuffer[2]) * 0.5f;
+            Vector3 localCenter = info.canvasTransform.InverseTransformPoint(worldCenter);
+            info.uiCenter = new Vector4(localCenter.x, localCenter.y, localCenter.z, 1.0f);
+        }
+
+        /// <summary>
+        /// 判斷組件是否掛載於 Screen UICanvas 或 Camera 底下 (用於 Shader 噪點取樣模式選擇)
+        /// </summary>
+        private static bool ResolveScreenSpace(Component comp)
+        {
+            if (comp == null) return false;
+
+            // 1. 檢查是否位於 UICanvas 底下且 CanvasType == Screen
+            UICanvas uiCanvas = comp.GetComponentInParent<UICanvas>(true);
+            if (uiCanvas != null && uiCanvas.CanvasType == CanvasType.Screen)
+            {
+                return true;
+            }
+
+            // 2. 檢查是否位於原生 ScreenSpaceCanvas 底下
+            Canvas c = comp.GetComponentInParent<Canvas>(true);
+            if (c != null && (c.renderMode == RenderMode.ScreenSpaceOverlay || c.renderMode == RenderMode.ScreenSpaceCamera))
+            {
+                return true;
+            }
+
+            // 3. 檢查是否掛載於 Camera (例如 GameCamera 或 MainCamera) 底下
+            Camera cam = comp.GetComponentInParent<Camera>(true);
+            if (cam != null)
+            {
+                return true;
+            }
+
+            return false;
+        }
+
+        private FadeTargetInfo ProcessRenderer(Renderer r, bool isScreen)
         {
             var info = new FadeTargetInfo();
             info.renderer = r;
+            info.isScreen = isScreen;
             info.originalMaterials = r.sharedMaterials;
             int matCount = r.sharedMaterials.Length;
             info.propertyBlocks = new MaterialPropertyBlock[matCount];
@@ -418,6 +460,15 @@ namespace Module5.Player
                 if (info.fadeMatInstances != null)
                     foreach (var m in info.fadeMatInstances) if (m != null) Destroy(m);
             }
+            if (info.uiTessellator != null)
+            {
+                Destroy(info.uiTessellator);
+                info.uiTessellator = null;
+                if (info.graphic != null)
+                {
+                    info.graphic.SetVerticesDirty();
+                }
+            }
             if (info.graphic != null)
             {
                 info.graphic.material = info.originalMaterials[0];
@@ -438,6 +489,21 @@ namespace Module5.Player
         {
             RestoreGroup(process.worldGroup);
             RestoreGroup(process.screenGroup);
+        }
+
+        private void SetGroupRenderersEnabled(FadeGroup group, bool enabled)
+        {
+            foreach (var info in group.targets)
+            {
+                if (info.renderer != null)
+                {
+                    info.renderer.enabled = enabled;
+                }
+                if (info.graphic != null)
+                {
+                    info.graphic.enabled = enabled;
+                }
+            }
         }
 
         private void RemoveAndRestoreObjectFromProcess(FadeProcess process, GameObject rootObj)
@@ -463,7 +529,8 @@ namespace Module5.Player
             for (int i = process.screenGroup.targets.Count - 1; i >= 0; i--)
             {
                 var info = process.screenGroup.targets[i];
-                if (info.graphic != null && grSet.Contains(info.graphic))
+                if ((info.renderer != null && rndSet.Contains(info.renderer)) ||
+                    (info.graphic != null && grSet.Contains(info.graphic)))
                 {
                     RestoreTargetInfo(info);
                     process.screenGroup.targets.RemoveAt(i);
@@ -481,15 +548,10 @@ namespace Module5.Player
             newProcess.edgeColor = this.edgeColor;
             newProcess.edgeWidth = this.edgeWidth;
             newProcess.baseGrainPixelSize = this.baseGrainPixelSize;
+            newProcess.enableUITessellation = this.enableUITessellation;
+            newProcess.uiSubdivisionsX = this.uiSubdivisionsX;
+            newProcess.uiSubdivisionsY = this.uiSubdivisionsY;
             newProcess.targetObjects = new List<GameObject>(this.targetObjects);
-            
-            newProcess.fadeRange = this.fadeRange;
-            newProcess.fadeHeightRatio = this.fadeHeightRatio;
-            newProcess.noiseTilingMultiplier = this.noiseTilingMultiplier;
-            
-            newProcess.screenFadeRange = this.screenFadeRange;
-            newProcess.screenFadeHeightRatio = this.screenFadeHeightRatio;
-            newProcess.screenNoiseTilingMultiplier = this.screenNoiseTilingMultiplier;
             
             if (_generatedNoise == null) RegenerateNoise();
 
@@ -516,16 +578,45 @@ namespace Module5.Player
             if (process.isFadeIn)
             {
                 // 修正手機端場景Awake 物件無法同步完成初始化造成的渲染問題
+                bool hasInactive = false;
                 foreach (var obj in process.targetObjects)
                 {
                     if (obj == null) continue;
-                    obj.SetActive(true);
+                    if (!obj.activeSelf)
+                    {
+                        hasInactive = true;
+                        obj.SetActive(true);
+                    }
                     CanvasRenderer[] canvasRenderers = obj.GetComponentsInChildren<CanvasRenderer>(true);
                     foreach (var r in canvasRenderers) r.SetAlpha(0f);
                     Renderer[] renderers = obj.GetComponentsInChildren<Renderer>(true);
-                    foreach (var r in renderers) r.forceRenderingOff = true;
+                    foreach (var r in renderers)
+                    {
+                        r.enabled = true;
+                        r.forceRenderingOff = true;
+                    }
+                    Graphic[] graphics = obj.GetComponentsInChildren<Graphic>(true);
+                    foreach (var g in graphics)
+                    {
+                        g.enabled = true;
+                    }
                 }
-                yield return new WaitForEndOfFrame();
+
+                if (hasInactive)
+                {
+                    yield return new WaitForEndOfFrame();
+                }
+            }
+
+            SetupProcessTargets(process);
+
+            if (process.isFadeIn)
+            {
+                // 全域消融進度：1.0 = 完全消融擴散 (不可見)，0.0 = 完全凝聚顯現 (實體)
+                UpdateFadeValue(process, 1f);
+                SetGroupRenderersEnabled(process.worldGroup, true);
+                SetGroupRenderersEnabled(process.screenGroup, true);
+
                 foreach (var obj in process.targetObjects)
                 {
                     if (obj == null) continue;
@@ -535,69 +626,74 @@ namespace Module5.Player
                     foreach (var r in renderers) r.forceRenderingOff = false;
                 }
             }
-
-            SetupProcessTargets(process);
+            else
+            {
+                UpdateFadeValue(process, 0f);
+            }
 
             float elapsed = 0;
             while (elapsed < process.duration)
             {
                 elapsed += Time.deltaTime;
                 float t = Mathf.Clamp01(elapsed / process.duration);
-                UpdateFadeValue(process, process.isFadeIn ? t : 1f - t);
+                // 淡入 (FadeIn): 1.0 -> 0.0 (消融 -> 顯現)
+                // 淡出 (FadeOut): 0.0 -> 1.0 (實體 -> 消融)
+                float currentProgress = process.isFadeIn ? (1f - t) : t;
+                UpdateFadeValue(process, currentProgress);
                 yield return null;
             }
-            UpdateFadeValue(process, process.isFadeIn ? 1f : 0f);
+            UpdateFadeValue(process, process.isFadeIn ? 0f : 1f);
+
+            if (!process.isFadeIn)
+            {
+                // 方案A：僅停用渲染組件，避免還原材質時物件顯形；保持 GameObject Active，避免干擾邏輯/音訊/光源/事件
+                SetGroupRenderersEnabled(process.worldGroup, false);
+                SetGroupRenderersEnabled(process.screenGroup, false);
+            }
 
             RestoreFadeTargets(process);
-
-            if (!process.isFadeIn) 
-            {
-                foreach (var obj in process.targetObjects)
-                    if (obj != null) obj.SetActive(false);
-            }
 
             _activeProcesses.Remove(process);
         }
 
-        private void UpdateFadeValue(FadeProcess process, float t)
+        private void UpdateFadeValue(FadeProcess process, float progress)
         {
-            UpdateGroupVisuals(process.worldGroup, t, process);
-            UpdateGroupVisuals(process.screenGroup, t, process);
+            UpdateGroupVisuals(process.worldGroup, progress, process);
+            UpdateGroupVisuals(process.screenGroup, progress, process);
         }
 
-        private void UpdateGroupVisuals(FadeGroup group, float t, FadeProcess process)
+        private void UpdateGroupVisuals(FadeGroup group, float progress, FadeProcess process)
         {
-            float targetScanY = Mathf.Lerp(group.minY - group.calcFadeRange, group.maxY, t);
-
             foreach (var info in group.targets)
             {
                 if (info.renderer != null)
                 {
                     for (int i = 0; i < info.propertyBlocks.Length; i++)
                     {
-                        info.propertyBlocks[i].SetFloat(ScanYId, targetScanY);
-                        info.propertyBlocks[i].SetFloat(FadeRangeId, group.calcFadeRange);
-                        info.propertyBlocks[i].SetFloat(NoiseTilingId, group.calcNoiseTiling * info.tilingMultiplier);
+                        info.propertyBlocks[i].SetFloat(ProgressId, progress);
+                        info.propertyBlocks[i].SetFloat(NoiseTilingId, 1.0f);
                         info.propertyBlocks[i].SetFloat(ExpandScaleId, process.expandScale);
                         info.propertyBlocks[i].SetFloat(SpiralIntensityId, process.spiralIntensity);
                         info.propertyBlocks[i].SetColor(EdgeColorId, process.edgeColor);
                         info.propertyBlocks[i].SetFloat(EdgeWidthId, process.edgeWidth);
                         info.propertyBlocks[i].SetFloat(BaseGrainPixelSizeId, process.baseGrainPixelSize);
+                        info.propertyBlocks[i].SetFloat(IsScreenSpaceId, info.isScreen ? 1.0f : 0.0f);
                         info.renderer.SetPropertyBlock(info.propertyBlocks[i], i);
                     }
                 }
                 if (info.graphic != null && info.uiMaterialInstance != null)
                 {
-                    var inst = info.uiMaterialInstance;
-                    inst.SetFloat(ScanYId, targetScanY);
-                    inst.SetFloat(FadeRangeId, group.calcFadeRange);
-                    inst.SetFloat(NoiseTilingId, group.calcNoiseTiling * info.tilingMultiplier);
+                    RefreshUICenter(info); // 每幀刷新 Canvas 本地中心，跟隨 Layout 變化
 
+                    var inst = info.uiMaterialInstance;
+                    inst.SetFloat(ProgressId, progress);
+                    inst.SetFloat(NoiseTilingId, 1.0f);
                     inst.SetFloat(ExpandScaleId, process.expandScale);
                     inst.SetFloat(SpiralIntensityId, process.spiralIntensity);
                     inst.SetColor(EdgeColorId, process.edgeColor);
                     inst.SetFloat(EdgeWidthId, process.edgeWidth);
                     inst.SetFloat(BaseGrainPixelSizeId, process.baseGrainPixelSize);
+                    inst.SetVector(ObjectCenterId, info.uiCenter);
                 }
             }
         }

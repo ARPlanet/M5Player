@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using Module5.DI;
 namespace Module5.Player
 {
@@ -40,7 +40,7 @@ namespace Module5.Player
         /// </summary>
         public M5EventHandler[] eventHandlers;
 
-        private void OnEnable()
+        protected virtual void OnEnable()
         {
             if (EventManager != null && eventHandlers != null && eventHandlers.Length > 0)
             {
@@ -48,7 +48,7 @@ namespace Module5.Player
             }
         }
 
-        private void OnDisable()
+        protected virtual void OnDisable()
         {
             if (EventManager != null && eventHandlers != null && eventHandlers.Length > 0)
             {

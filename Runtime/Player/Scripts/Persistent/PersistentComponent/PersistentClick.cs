@@ -10,5 +10,6 @@ namespace Module5.Player
     {
         public bool enableLongTap;
         public float longTapThreshold;
+        public float clickCooldown = 0.3f;
     }
 }

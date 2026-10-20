@@ -8,15 +8,77 @@ namespace Module5.Player
     public class VideoPlayer2D : VideoPlayerBase
     {
         [SerializeField] protected RawImage output;
+        [SerializeField] protected Button buttonPlay;
+        [SerializeField] protected CanvasGroup overlayCanvasGroup;
+
+        public Button ButtonPlay => buttonPlay;
+        public CanvasGroup OverlayCanvasGroup => overlayCanvasGroup;
 
         protected RenderTexture renderTexture;
 
+        public override bool ShowPlayButton
+        {
+            get => showPlayButton;
+            set
+            {
+                base.ShowPlayButton = value;
+                if (buttonPlay != null)
+                {
+                    buttonPlay.gameObject.SetActive(videoPlayer != null && videoPlayer.isPrepared && value);
+                }
+            }
+        }
 
         protected override void Awake()
         {
             base.Awake();
             // 確保 VideoPlayer 的 RenderMode 為 Render Texture
             videoPlayer.renderMode = VideoRenderMode.RenderTexture;
+
+            if (buttonPlay != null)
+            {
+                buttonPlay.onClick.AddListener(OnPlayButtonClicked);
+                buttonPlay.gameObject.SetActive(false);
+
+                if (overlayCanvasGroup == null)
+                {
+                    overlayCanvasGroup = buttonPlay.GetComponentInChildren<CanvasGroup>(true);
+                }
+            }
+
+            UpdateUIState(isPlaying: false);
+        }
+
+        protected virtual void OnPlayButtonClicked()
+        {
+            TogglePlayPause();
+        }
+
+        public void CallOnPlayButtonClicked() => OnPlayButtonClicked();
+
+        public void SetButtonPlay(Button button)
+        {
+            buttonPlay = button;
+            if (buttonPlay != null && overlayCanvasGroup == null)
+            {
+                overlayCanvasGroup = buttonPlay.GetComponentInChildren<CanvasGroup>(true);
+            }
+        }
+
+        public void SetOverlayCanvasGroup(CanvasGroup canvasGroup)
+        {
+            overlayCanvasGroup = canvasGroup;
+        }
+
+        protected override void UpdateUIState(bool isPlaying)
+        {
+            base.UpdateUIState(isPlaying);
+
+            if (overlayCanvasGroup != null)
+            {
+                overlayCanvasGroup.alpha = isPlaying ? 0f : 1f;
+                overlayCanvasGroup.blocksRaycasts = true;
+            }
         }
 
         protected override void OnEnable()
@@ -34,6 +96,7 @@ namespace Module5.Player
         {
             // 清理之前的資源
             ReleaseTexture();
+            if (buttonPlay != null) buttonPlay.gameObject.SetActive(false);
             base.Prepare();
         }
 
@@ -75,6 +138,7 @@ namespace Module5.Player
         protected override void OnVideoError(VideoPlayer source, string message)
         {
             base.OnVideoError(source, message);
+            if (buttonPlay != null) buttonPlay.gameObject.SetActive(false);
             ReleaseTexture();
         }
 
@@ -91,6 +155,7 @@ namespace Module5.Player
                 output.color = Color.white;
             }
             base.OnVideoPrepared(source);
+            if (buttonPlay != null) buttonPlay.gameObject.SetActive(showPlayButton);
         }
 
         protected override void OnVideoEnd(VideoPlayer source)
@@ -98,10 +163,6 @@ namespace Module5.Player
             base.OnVideoEnd(source);
         }
 
-        protected override void OnTogglePlayChanged(bool value)
-        {
-            base.OnTogglePlayChanged(value);
-        }
 
         protected virtual void ReleaseTexture()
         {
@@ -122,6 +183,10 @@ namespace Module5.Player
         protected override void OnDestroy()
         {
             base.OnDestroy();
+            if (buttonPlay != null)
+            {
+                buttonPlay.onClick.RemoveListener(OnPlayButtonClicked);
+            }
             ReleaseTexture();
         }
     }

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using UnityEngine;
 using UnityEngine.Serialization;
 using UnityEngine.UI;
@@ -41,6 +41,11 @@ namespace Module5.Player
 
         private async void Start()
         {
+            if (_projectManager == null)
+            {
+                Debug.LogWarning("[ProjectOpener] ProjectManager 尚未就緒，請檢查 LifetimeScope 依賴注入配置。");
+            }
+
             if (useLocalPath)
             {
                 // 本機路徑模式：隱藏 UI，直接載入
@@ -59,7 +64,7 @@ namespace Module5.Player
             if (downloadButton != null)
                 downloadButton.onClick.AddListener(OnDownloadClicked);
 
-            if (_projectManager != null && _projectManager != null)
+            if (_projectManager != null)
             {
                 _projectManager.UnloadEvent += OnProjectUnloaded;
             }

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
@@ -212,7 +212,7 @@ namespace Module5.Player
                         }
                         else
                         {
-                            sb.Append(value.ToString());
+                            sb.Append(ValueFormatter.FormatValueAsString(value));
                         }
                     }
                     else

@@ -28,7 +28,7 @@ namespace Module5.Player
                 {
                     Name = pEvent.Name,
                     Enabled = pEvent.Enabled,
-                    EventType = string.IsNullOrEmpty(pEvent.EventType) ? NoneCommands.KeyNone : pEvent.EventType,
+                    EventType = string.IsNullOrEmpty(pEvent.EventType) ? NoneCommands.None : pEvent.EventType,
                     SourceFilter = pEvent.SourceFilter?.Select(s => {
                         if (Guid.TryParse(s, out Guid g))
                         {
@@ -70,7 +70,7 @@ namespace Module5.Player
                     for (int k = 0; k < pEvent.Commands.Length; k++)
                     {
                         var pCmd = pEvent.Commands[k];
-                        var cmdType = string.IsNullOrEmpty(pCmd.Type) ? NoneCommands.KeyNone : pCmd.Type;
+                        var cmdType = string.IsNullOrEmpty(pCmd.Type) ? NoneCommands.None : pCmd.Type;
                         m5Event.Commands[k] = new M5Command
                         {
                             Delay = pCmd.Delay,
@@ -101,7 +101,7 @@ namespace Module5.Player
             var result = new Dictionary<string, object>();
             foreach (var kvp in parameters)
             {
-                if (kvp.Key == "event" && (cmdType == EventHandlerCommands.KeyDisable || cmdType == EventHandlerCommands.KeyEnable))
+                if (kvp.Key == "event" && (cmdType == EventHandlerDisableActionStrategy.CommandKey || cmdType == EventHandlerEnableActionStrategy.CommandKey))
                 {
                     result[kvp.Key] = kvp.Value;
                 }

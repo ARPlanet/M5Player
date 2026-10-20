@@ -5,43 +5,54 @@ using UnityEngine;
 
 namespace Module5.Player
 {
+    [Command("Component", "Change Text")]
     public class ComponentChangeTextActionStrategy : IActionStrategy
     {
+        public const string CommandKey = "component_change_text";
+        string IActionStrategy.CommandKey => CommandKey;
         public const string ParamTarget = "target";
         public const string ParamText = "text";
 
-        public Dictionary<string, object> DefaultParameters => new Dictionary<string, object>
+        public IReadOnlyDictionary<string, ParameterDefinition> ParameterDefinitions => new Dictionary<string, ParameterDefinition>
         {
-            { ParamTarget, Guid.Empty.ToString() },
-            { ParamText, string.Empty }
+            { ParamTarget, ParameterDefinition.CreateObject<UnityEngine.UI.Text>() },
+            { ParamText, ParameterDefinition.Create<string>(string.Empty) }
         };
 
-        public IEnumerator Execute(M5Command command)
+        public IEnumerator Execute(M5Command command, ActionExecutionContext context)
         {
-            var textComp = (UnityEngine.UI.Text)command.Parameters[ParamTarget];
-            if (textComp != null)
+            if (ActionStrategyHelper.TryGetComponent<UnityEngine.UI.Text>(command, ParamTarget, out var textComp) && textComp != null)
             {
+                command.Parameters.TryGetValue(ParamText, out object rawText);
+                string text = ValueFormatter.FormatValueAsString(rawText);
+                Debug.Log($"{context.LogPrefix}[Action {command.CommandType}][target={textComp.gameObject.name}, text={text}]");
+
                 DynamicTextReplacer replacer = textComp.GetComponent<DynamicTextReplacer>();
                 if (replacer != null)
                 {
-                    string text = (string)command.Parameters[ParamText];
-                    Debug.Log($"[Action {command.CommandType}][target={textComp.gameObject.name}, text={text}]");
                     replacer.RawText = text;
+                }
+                else
+                {
+                    textComp.text = text;
                 }
             }
             yield break;
         }
     }
 
+    [Command("Component", "Change Image")]
     public class ComponentChangeImageActionStrategy : IActionStrategy
     {
+        public const string CommandKey = "component_change_image";
+        string IActionStrategy.CommandKey => CommandKey;
         public const string ParamTarget = "target";
         public const string ParamTexture = "texture";
 
-        public virtual Dictionary<string, object> DefaultParameters => new Dictionary<string, object>
+        public virtual IReadOnlyDictionary<string, ParameterDefinition> ParameterDefinitions => new Dictionary<string, ParameterDefinition>
         {
-            { ParamTarget, Guid.Empty.ToString() },
-            { ParamTexture, Guid.Empty.ToString() }
+            { ParamTarget, ParameterDefinition.CreateObject<UnityEngine.UI.RawImage>() },
+            { ParamTexture, ParameterDefinition.CreateObject<Texture>() }
         };
 
         protected readonly IAssetLoaderManager _assetLoaderManager;
@@ -51,47 +62,33 @@ namespace Module5.Player
             _assetLoaderManager = assetLoaderManager;
         }
 
-        public virtual IEnumerator Execute(M5Command command)
+        public virtual IEnumerator Execute(M5Command command, ActionExecutionContext context)
         {
             var rawImage = (UnityEngine.UI.RawImage)command.Parameters[ParamTarget];
             if (rawImage != null)
             {
-                object textureObj = command.Parameters[ParamTexture];
-                Texture tex = null;
-                if (textureObj is Texture t)
-                {
-                    tex = t;
-                }
-                else if (textureObj is Guid textureGuid && _assetLoaderManager != null)
-                {
-                    var task = _assetLoaderManager.LoadInstance(textureGuid);
-                    while (!task.IsCompleted) yield return null;
-                    var textureContainer = task.Result;
-                    if (textureContainer != null && textureContainer.Obj is Texture loadedTex)
-                    {
-                        tex = loadedTex;
-                    }
-                }
-
-                if (tex != null)
-                {
-                    Debug.Log($"[Action {command.CommandType}][target={rawImage.gameObject.name}, texture={tex.name}]");
-                    rawImage.texture = tex;
-                }
+                Texture tex = (Texture)command.Parameters[ParamTexture];
+                string name = tex != null ? tex.name : "null";
+                
+                Debug.Log($"{context.LogPrefix}[Action {command.CommandType}][target={rawImage.gameObject.name}, texture={name}]");
+                rawImage.texture = tex;
             }
             yield break;
         }
     }
 
+    [Command("Component", "Text Input")]
     public class ComponentTextInputActionStrategy : IActionStrategy
     {
+        public const string CommandKey = "component_text_input";
+        string IActionStrategy.CommandKey => CommandKey;
         public const string ParamInputField = "inputField";
         public const string ParamVariable = "variable";
 
-        public Dictionary<string, object> DefaultParameters => new Dictionary<string, object>
+        public IReadOnlyDictionary<string, ParameterDefinition> ParameterDefinitions => new Dictionary<string, ParameterDefinition>
         {
-            { ParamInputField, Guid.Empty.ToString() },
-            { ParamVariable, string.Empty }
+            { ParamInputField, ParameterDefinition.CreateObject<UnityEngine.UI.InputField>() },
+            { ParamVariable, ParameterDefinition.CreateVariableKey() }
         };
 
         private readonly IVariableManager _variableManager;
@@ -101,7 +98,7 @@ namespace Module5.Player
             _variableManager = variableManager;
         }
 
-        public IEnumerator Execute(M5Command command)
+        public IEnumerator Execute(M5Command command, ActionExecutionContext context)
         {
             var inputField = (UnityEngine.UI.InputField)command.Parameters[ParamInputField];
             if (inputField != null)
@@ -109,7 +106,7 @@ namespace Module5.Player
                 string variableKey = (string)command.Parameters[ParamVariable];
                 if (!string.IsNullOrEmpty(variableKey))
                 {
-                    Debug.Log($"[Action {command.CommandType}][inputField={inputField.gameObject.name}, variable={variableKey}, value={inputField.text}]");
+                    Debug.Log($"{context.LogPrefix}[Action {command.CommandType}][inputField={inputField.gameObject.name}, variable={variableKey}, value={inputField.text}]");
                     _variableManager.SetValue(variableKey, inputField.text);
                 }
             }

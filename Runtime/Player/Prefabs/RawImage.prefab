@@ -11,6 +11,8 @@ GameObject:
   - component: {fileID: 789205213755065}
   - component: {fileID: 6776784653510410013}
   - component: {fileID: 5851582011551994935}
+  - component: {fileID: -109163916393626192}
+  - component: {fileID: 5158249059312551597}
   - component: {fileID: -3715083460189820161}
   m_Layer: 0
   m_Name: RawImage
@@ -73,6 +75,41 @@ MonoBehaviour:
     y: 0
     width: 1
     height: 1
+--- !u!114 &-109163916393626192
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8462400952816978209}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: caf215e89b9dcd14f9aca7368202451a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  rawImage: {fileID: 0}
+  size: {x: 1, y: 1}
+  frameLength: 1
+  speed: 0.05
+  mode: 0
+  playAuto: 1
+  isPlay: 0
+  timer: 0
+  frame: 0
+--- !u!114 &5158249059312551597
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8462400952816978209}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 64f932c0277e45f40a838a59f16aa682, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  xrayType: 0
+  stencilId: 1
 --- !u!114 &-3715083460189820161
 MonoBehaviour:
   m_ObjectHideFlags: 0

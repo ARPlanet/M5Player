@@ -12,7 +12,7 @@ namespace Module5.Player
         World,
     }
 
-
+    [Alias("Canvas")]
     public class UICanvas : MonoBehaviour
     {
         [Inject] ISceneManager SceneManager {  get; set; }
@@ -30,7 +30,7 @@ namespace Module5.Player
             }
         }
 
-        public bool IsRootCanvas => Canvas.isRootCanvas;
+        public bool IsRootCanvas => Canvas != null && Canvas.isRootCanvas;
 
         public virtual int SortingOrder
         {
@@ -50,23 +50,38 @@ namespace Module5.Player
             }
         }
 
-        [SerializeField] protected CanvasType canvasType;
+        [SerializeField] protected CanvasType canvasType = CanvasType.World; // 預設World, Prefab的Canvas預設也是World Space
         public virtual CanvasType CanvasType 
         {
-            get => canvasType;
+            get
+            {
+                if (!IsRootCanvas && Canvas != null && Canvas.rootCanvas != null)
+                {
+                    var rootUICanvas = Canvas.rootCanvas.GetComponent<UICanvas>();
+                    if (rootUICanvas != null && rootUICanvas != this)
+                    {
+                        return rootUICanvas.CanvasType;
+                    }
+                }
+                return canvasType;
+            }
             set
             {
                 if (canvasType == value) return;
                 canvasType = value;
-                if (canvasType == CanvasType.Screen)
+                if (IsRootCanvas)
                 {
-                    Canvas.renderMode = RenderMode.ScreenSpaceCamera;
+                    if (canvasType == CanvasType.Screen)
+                    {
+                        ApplyScalerSettings();
+                        Canvas.renderMode = RenderMode.ScreenSpaceCamera;
+                    }
+                    else
+                    {
+                        Canvas.renderMode = RenderMode.WorldSpace;
+                    }
+                    SetScaleFactor();
                 }
-                else
-                {
-                    Canvas.renderMode = RenderMode.WorldSpace;
-                }
-                SetScaleFactor();
             }
         }
 
@@ -93,13 +108,37 @@ namespace Module5.Player
             {
                 Canvas.overrideSorting = true;
             }
+            if (IsRootCanvas && canvasType == CanvasType.Screen)
+            {
+                ApplyScalerSettings();
+                SetScaleFactor();
+            }
+        }
+
+        protected virtual void OnRectTransformDimensionsChange()
+        {
+            if (IsRootCanvas && canvasType == CanvasType.Screen)
+            {
+                SetScaleFactor();
+            }
+        }
+
+        protected virtual void ApplyScalerSettings()
+        {
+            if (CanvasScaler != null && canvasType == CanvasType.Screen)
+            {
+                CanvasScaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+                CanvasScaler.referenceResolution = new Vector2(1080f, 1080f);
+                CanvasScaler.screenMatchMode = CanvasScaler.ScreenMatchMode.Expand;
+            }
         }
 
         protected virtual void SetScaleFactor()
         {
             if (canvasType == CanvasType.Screen)
             {
-                //CanvasScaler.dynamicPixelsPerUnit = Screen.height / 1920;
+                float minDimension = Mathf.Min(Screen.width, Screen.height);
+                CanvasScaler.dynamicPixelsPerUnit = minDimension / 1080f;
             }
             else
             {
@@ -107,4 +146,4 @@ namespace Module5.Player
             }
         }
     }
-}
+}

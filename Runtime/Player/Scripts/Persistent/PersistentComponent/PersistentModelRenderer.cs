@@ -10,5 +10,7 @@ namespace Module5.Player
     {
         public string modelData;
         public bool playAutomatic;
+        public string currentClip;
+        public WrapMode currentWrapMode;
     }
 }

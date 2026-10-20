@@ -29,6 +29,9 @@ namespace Module5.DI.VContainerAdapter
             builder.AddModule5ResolverAdapter();
 
             // 2. 註冊 Core 各類管理器與服務
+            builder.RegisterInstance(new BgmManagerData());
+            builder.Register<BgmManager>(VContainer.Lifetime.Singleton).AsImplementedInterfaces();
+
             builder.Register<ProjectPathState>(VContainer.Lifetime.Singleton).AsImplementedInterfaces();
             builder.Register<ProjectManager>(VContainer.Lifetime.Singleton).AsImplementedInterfaces();
             builder.Register<ProjectAssetManager>(VContainer.Lifetime.Singleton).AsImplementedInterfaces();

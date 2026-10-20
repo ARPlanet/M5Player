@@ -15,12 +15,12 @@ Shader "UI/UIImageSpaceGather"
 
         [Toggle(UNITY_UI_ALPHACLIP)] _UseUIAlphaClip ("Use Alpha Clip", Float) = 0
 
-        [HideInInspector] _ScanY ("Scan Y", Float) = 0
-        [HideInInspector] _FadeRange ("Fade Range", Float) = 1.0     
+        [HideInInspector] _Progress ("Progress", Float) = 0
         [HideInInspector] _NoiseTiling ("Noise Tiling", Float) = 1.0
         [HideInInspector] _BaseGrainPixelSize ("Base Grain Pixel Size", Float) = 50.0
         [HideInInspector] _NoiseTex ("Noise Texture", 2D) = "white" {}
         [HideInInspector] _IsScreenSpace ("Is Screen Space", Float) = 0
+        [HideInInspector] _ObjectCenter ("Object Center", Vector) = (0, 0, 0, 0)
         _SpiralIntensity ("Spiral Intensity", Float) = 2.0
         
         [HDR] _EdgeColor ("Edge Color", Color) = (0, 1, 1, 1) 
@@ -108,8 +108,7 @@ Shader "UI/UIImageSpaceGather"
                 half4 _TextureSampleAdd;
                 float4 _ClipRect;
                 float4 _MainTex_ST;
-                float _ScanY;
-                float _FadeRange;
+                float _Progress;
                 float _SpiralIntensity;
                 float4 _EdgeColor;
                 float _EdgeWidth;
@@ -119,6 +118,7 @@ Shader "UI/UIImageSpaceGather"
                 float _NoiseTiling;
                 float _BaseGrainPixelSize;
                 float _IsScreenSpace;
+                float4 _ObjectCenter;
             CBUFFER_END
 
             TEXTURE2D(_MainTex);
@@ -133,27 +133,32 @@ Shader "UI/UIImageSpaceGather"
                 UNITY_TRANSFER_INSTANCE_ID(input, output);
                 UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(output);
 
-                output.localPos = input.positionOS.xyz;
-                float3 worldPos = TransformObjectToWorld(input.positionOS.xyz);
+                // 方案C：UGUI 頂點的 Object Space 即 Canvas 本地座標，_ObjectCenter 由 C# 以同一空間提供
+                float3 posOS = input.positionOS.xyz;
+                output.localPos = posOS;
+                float3 worldPos = TransformObjectToWorld(posOS);
                 output.worldPosition = float4(worldPos, 1.0);
-                
-                float3 worldCenter = float3(UNITY_MATRIX_M[0][3], UNITY_MATRIX_M[1][3], UNITY_MATRIX_M[2][3]);
-                float3 relPos = worldPos - worldCenter;
-                output.relWorldPos = relPos;
 
-                float factor = saturate((worldPos.y - _ScanY) / _FadeRange);
+                float3 centerOS = _ObjectCenter.w > 0.5 ? _ObjectCenter.xyz : float3(0, 0, 0);
+                output.relWorldPos = worldPos - TransformObjectToWorld(centerOS);
+
+                // 全域消融進度 (0.0 = 完全實體顯示, 1.0 = 完全消融擴散)
+                float factor = saturate(_Progress);
                 output.distFactor = factor;
+
+                // 在 Canvas 平面 (Object Space XY) 上繞 UI 中心旋轉、擴散
+                float3 relOS = posOS - centerOS;
 
                 float rotation = factor * _SpiralIntensity * PI;
                 float cosA = cos(rotation);
                 float sinA = sin(rotation);
                 float2x2 rot = float2x2(cosA, -sinA, sinA, cosA);
-                relPos.xz = mul(rot, relPos.xz);
+                relOS.xy = mul(rot, relOS.xy);
 
                 float expandScale = 1.0 + factor * _ExpandScale;
-                relPos.xz *= expandScale;
+                relOS.xy *= expandScale;
 
-                float3 finalWorldPos = worldCenter + relPos;
+                float3 finalWorldPos = TransformObjectToWorld(centerOS + relOS);
                 output.positionCS = TransformWorldToHClip(finalWorldPos);
                 
                 output.uv = TRANSFORM_TEX(input.uv, _MainTex);
@@ -193,7 +198,7 @@ Shader "UI/UIImageSpaceGather"
                     noiseVal = noiseA * 0.75 + noiseB * 0.25;
                 }
 
-                float dissolveStep = 1.1 + _EdgeWidth;
+                float dissolveStep = 1.0 + _EdgeWidth;
                 float currentThreshold = noiseVal - (input.distFactor * dissolveStep);
                 clip(currentThreshold);
 
@@ -203,7 +208,7 @@ Shader "UI/UIImageSpaceGather"
                 float gridLine = max(smoothstep(0.8, 1.0, gridX), smoothstep(0.8, 1.0, gridZ));
 
                 float edge = 1.0 - saturate(currentThreshold / (_EdgeWidth + 1e-5));
-                float edgeWeight = saturate(input.distFactor * 10.0) * saturate((1.0 - input.distFactor) * 20.0);
+                float edgeWeight = saturate(input.distFactor * 10.0) * saturate((1.0 - input.distFactor) * 10.0);
                 float edgeGlow = edge * edgeWeight;
 
                 half3 glowCol = _EdgeColor.rgb * (1.0 + gridLine * 2.0);

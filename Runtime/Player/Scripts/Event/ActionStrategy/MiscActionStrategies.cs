@@ -7,17 +7,20 @@ using Newtonsoft.Json;
 
 namespace Module5.Player
 {
+    [Command("Remote Function", "Call")]
     public class RemoteFunctionCallActionStrategy : IActionStrategy
     {
+        public const string CommandKey = "remote_function_call";
+        string IActionStrategy.CommandKey => CommandKey;
         public const string ParamUri = "uri";
         public const string ParamHeader = "header";
         public const string ParamContent = "content";
 
-        public Dictionary<string, object> DefaultParameters => new Dictionary<string, object>
+        public IReadOnlyDictionary<string, ParameterDefinition> ParameterDefinitions => new Dictionary<string, ParameterDefinition>
         {
-            { ParamUri, string.Empty },
-            { ParamHeader, string.Empty },
-            { ParamContent, string.Empty }
+            { ParamUri, ParameterDefinition.Create<string>(string.Empty) },
+            { ParamHeader, ParameterDefinition.Create<string>(string.Empty) },
+            { ParamContent, ParameterDefinition.Create<string>(string.Empty) }
         };
 
         private readonly IVariableManager _variableManager;
@@ -33,13 +36,13 @@ namespace Module5.Player
             _eventManager = eventManager;
         }
 
-        public IEnumerator Execute(M5Command command)
+        public IEnumerator Execute(M5Command command, ActionExecutionContext context)
         {
             string uri = (string)command.Parameters[ParamUri];
             string header = (string)command.Parameters[ParamHeader];
             string content = (string)command.Parameters[ParamContent];
 
-            Debug.Log($"[Action {command.CommandType}][uri={uri}]");
+            Debug.Log($"{context.LogPrefix}[Action {command.CommandType}][uri={uri}]");
 
             using (UnityWebRequest request = new UnityWebRequest(uri, "POST"))
             {
@@ -61,7 +64,7 @@ namespace Module5.Player
                     }
                     catch (System.Exception e)
                     {
-                        Debug.LogWarning($"[RemoteFunctionCall] Failed to parse header JSON: {e.Message}");
+                        Debug.LogWarning($"{context.LogPrefix}[RemoteFunctionCall] Failed to parse header JSON: {e.Message}");
                     }
                 }
 
@@ -83,7 +86,7 @@ namespace Module5.Player
                 if (request.result == UnityWebRequest.Result.Success)
                 {
                     string responseText = request.downloadHandler.text;
-                    Debug.Log($"[RemoteFunctionCall] Success: {responseText}");
+                    Debug.Log($"{context.LogPrefix}[RemoteFunctionCall] Success: {responseText}");
 
                     // 嘗試反序列化為指令陣列並執行
                     try
@@ -93,83 +96,95 @@ namespace Module5.Player
                         {
                             if (_eventManager != null)
                             {
-                                _eventManager.ExecuteCommands(remoteCommands, null);
+                                _eventManager.ExecuteCommands(remoteCommands, new ActionExecutionContext { RuleName = "Remote" });
                             }
                             else
                             {
-                                Debug.LogWarning("[RemoteFunctionCall] EventManager not set, cannot execute remote commands.");
+                                Debug.LogWarning($"{context.LogPrefix}[RemoteFunctionCall] EventManager not set, cannot execute remote commands.");
                             }
                         }
                     }
                     catch (System.Exception ex)
                     {
                         // 若不是 JSON 或格式不符則忽略（可能是單純的字串回傳）
-                        Debug.Log($"[RemoteFunctionCall] Response is not a command array or failed to parse: {ex.Message}");
+                        Debug.Log($"{context.LogPrefix}[RemoteFunctionCall] Response is not a command array or failed to parse: {ex.Message}");
                     }
                 }
                 else
                 {
-                    Debug.LogError($"[RemoteFunctionCall] Error: {request.error}\nResponse: {request.downloadHandler.text}");
+                    Debug.LogError($"{context.LogPrefix}[RemoteFunctionCall] Error: {request.error}\nResponse: {request.downloadHandler.text}");
                 }
             }
         }
     }
 
+    [Command("Native Function", "Call")]
     public class NativeFunctionCallActionStrategy : IActionStrategy
     {
-        public Dictionary<string, object> DefaultParameters => new Dictionary<string, object>();
+        public const string CommandKey = "native_function_call";
+        string IActionStrategy.CommandKey => CommandKey;
+        public IReadOnlyDictionary<string, ParameterDefinition> ParameterDefinitions => new Dictionary<string, ParameterDefinition>();
 
-        public IEnumerator Execute(M5Command command)
+        public IEnumerator Execute(M5Command command, ActionExecutionContext context)
         {
-            Debug.Log($"[Action {command.CommandType}]");
+            Debug.Log($"{context.LogPrefix}[Action {command.CommandType}]");
             yield break;
         }
     }
 
+    [Command("Uri", "Open")]
     public class UriOpenActionStrategy : IActionStrategy
     {
+        public const string CommandKey = "uri_open";
+        string IActionStrategy.CommandKey => CommandKey;
         public const string ParamUri = "uri";
 
-        public Dictionary<string, object> DefaultParameters => new Dictionary<string, object>
+        public IReadOnlyDictionary<string, ParameterDefinition> ParameterDefinitions => new Dictionary<string, ParameterDefinition>
         {
-            { ParamUri, string.Empty }
+            { ParamUri, ParameterDefinition.Create<string>(string.Empty) }
         };
 
-        public IEnumerator Execute(M5Command command)
+        public IEnumerator Execute(M5Command command, ActionExecutionContext context)
         {
             string uri = (string)command.Parameters[ParamUri];
             if (!string.IsNullOrEmpty(uri))
             {
-                Debug.Log($"[Action {command.CommandType}][uri={uri}]");
+                Debug.Log($"{context.LogPrefix}[Action {command.CommandType}][uri={uri}]");
                 Application.OpenURL(uri);
             }
             yield break;
         }
     }
 
+    [Command("Misc", "Rand Exec")]
     public class RandExecActionStrategy : IActionStrategy
     {
-        public Dictionary<string, object> DefaultParameters => new Dictionary<string, object>();
+        public const string CommandKey = "misc_rand_exec";
+        string IActionStrategy.CommandKey => CommandKey;
+        public IReadOnlyDictionary<string, ParameterDefinition> ParameterDefinitions => new Dictionary<string, ParameterDefinition>();
 
-        public IEnumerator Execute(M5Command command)
+        public IEnumerator Execute(M5Command command, ActionExecutionContext context)
         {
-            Debug.Log($"[Action {command.CommandType}]");
+            Debug.Log($"{context.LogPrefix}[Action {command.CommandType}]");
             yield break;
         }
     }
 
+    [Command("Misc", "Delay Exec")]
     public class DelayExecActionStrategy : IActionStrategy
     {
+        public const string CommandKey = "misc_delay_exec";
+        string IActionStrategy.CommandKey => CommandKey;
         public const string ParamSeconds = "seconds";
 
-        public Dictionary<string, object> DefaultParameters => new Dictionary<string, object>
+        public IReadOnlyDictionary<string, ParameterDefinition> ParameterDefinitions => new Dictionary<string, ParameterDefinition>
         {
-            { ParamSeconds, 0f }
+            { ParamSeconds, ParameterDefinition.Create<float>(0f) }
         };
 
-        public IEnumerator Execute(M5Command command)
+        public IEnumerator Execute(M5Command command, ActionExecutionContext context)
         {
-            Debug.Log($"[Action {command.CommandType}]");
+            Debug.Log($"{context.LogPrefix}[Action {command.CommandType}]");
             yield break;
         }
     }
