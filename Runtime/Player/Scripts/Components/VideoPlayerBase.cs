@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -6,6 +6,8 @@ using UnityEngine.Video;
 using Module5.DI;
 namespace Module5.Player
 {
+    [Alias("Video Player")]
+    [ExposeToEventHandler]
     public abstract class VideoPlayerBase : MonoBehaviour
     {
         //[Inject] public IAssetDataBaseManager AssetDataBaseManager { get; set; }
@@ -21,10 +23,27 @@ namespace Module5.Player
             }
         }
 
+        [ExposeToEventHandler(true, false)]
         public bool IsVideoPlaying => VideoPlayer.isPlaying;
 
+        [ExposeToEventHandler(true, false)]
+        public bool IsVideoPrepared => VideoPlayer.isPrepared;
+
+        [ExposeToEventHandler(true, false)]
+        public bool IsPreparing => isPreparing;
+
+        [SerializeField] protected AudioSource audioSource;
+        public AudioSource AudioSource
+        {
+            get
+            {
+                if (audioSource == null) audioSource = GetComponentInChildren<AudioSource>(true);
+                return audioSource;
+            }
+            set => audioSource = value;
+        }
+
         [SerializeField] protected Text textErrorMsg;
-        [SerializeField] protected Toggle togglePlay;
         [SerializeField] protected bool showPlayButton = true;
         public virtual bool ShowPlayButton
         {
@@ -32,40 +51,89 @@ namespace Module5.Player
             set
             {
                 showPlayButton = value;
-                if(togglePlay != null) togglePlay.gameObject.SetActive(VideoPlayer.isPrepared && value);
+                UpdateUIState(videoPlayer != null && videoPlayer.isPlaying);
             }
         }
 
+        [ExposeToEventHandler(true, false)]
         public virtual string Url
         {
             get => VideoPlayer.url;
-            set => VideoPlayer.url = value;
+            set
+            {
+                VideoPlayer.url = value;
+                SetupAudioTrack();
+            }
         }
+
+        [ExposeToEventHandler(true, false)]
         public virtual bool IsLoop
         {
             get => VideoPlayer.isLooping;
             set => VideoPlayer.isLooping = value;
         }
+
+        [ExposeToEventHandler(true, false)]
         public bool playOnAwake = true;
 
         protected bool isPlayAfterPrepare = false;
+        protected bool isPreparing = false;
 
         protected virtual void Awake()
         {
-            videoPlayer.prepareCompleted += OnVideoPrepared;
-            videoPlayer.loopPointReached += OnVideoEnd;
-            videoPlayer.errorReceived += OnVideoError;
-
-            if (togglePlay != null)
+            if (VideoPlayer != null)
             {
-                togglePlay.onValueChanged.AddListener(OnTogglePlayChanged);
-                togglePlay.gameObject.SetActive(false);
+                VideoPlayer.playOnAwake = false;
+                VideoPlayer.prepareCompleted += OnVideoPrepared;
+                VideoPlayer.loopPointReached += OnVideoEnd;
+                VideoPlayer.errorReceived += OnVideoError;
+                SetupAudioTrack();
+            }
+
+            UpdateUIState(isPlaying: false);
+        }
+
+        public virtual void SetupAudioTrack()
+        {
+            if (VideoPlayer == null) return;
+
+            videoPlayer.controlledAudioTrackCount = 1;
+            videoPlayer.EnableAudioTrack(0, true);
+
+            if (videoPlayer.audioOutputMode == VideoAudioOutputMode.AudioSource)
+            {
+                if (AudioSource != null)
+                {
+                    AudioSource.playOnAwake = false;
+                    videoPlayer.SetTargetAudioSource(0, AudioSource);
+                }
+            }
+            else if (videoPlayer.audioOutputMode == VideoAudioOutputMode.Direct)
+            {
+                videoPlayer.SetDirectAudioVolume(0, 1.0f);
+                videoPlayer.SetDirectAudioMute(0, false);
             }
         }
 
         protected virtual void OnEnable()
         {
-            if (videoPlayer.url != null && videoPlayer.isPrepared == false) 
+            if (VideoPlayer == null) return;
+
+            if (videoPlayer.isPlaying)
+            {
+                if (playOnAwake)
+                {
+                    TriggerPlayStart();
+                }
+            }
+            else if (videoPlayer.isPrepared)
+            {
+                if (playOnAwake)
+                {
+                    PlayVideo();
+                }
+            }
+            else if (!string.IsNullOrEmpty(videoPlayer.url) && !isPreparing) 
             {
                 isPlayAfterPrepare = playOnAwake;
                 Prepare();
@@ -79,149 +147,244 @@ namespace Module5.Player
 
         public virtual void PrepareVideoFromUrl(string url, bool isPlayAfterPrepare, bool isLoop)
         {
-            this.isPlayAfterPrepare = isPlayAfterPrepare;
-            if (!isPlayAfterPrepare)
+            bool isSameUrl = (videoPlayer.url == url);
+
+            if (isSameUrl)
             {
-                StopVideo();
+                this.isPlayAfterPrepare = isPlayAfterPrepare;
+                videoPlayer.isLooping = isLoop;
+
+                if (videoPlayer.isPrepared && isPlayAfterPrepare)
+                {
+                    PlayVideo();
+                    return;
+                }
+
+                if (isPreparing)
+                {
+                    return;
+                }
+            }
+
+            // 中途換片（或新片載入）：中斷舊影片的準備與播放
+            videoPlayer.Stop();
+            isPreparing = false;
+
+            this.isPlayAfterPrepare = isPlayAfterPrepare;
+            videoPlayer.url = url;
+            videoPlayer.isLooping = isLoop;
+            SetupAudioTrack();
+
+            if (isActiveAndEnabled) Prepare();
+        }
+
+        public virtual void TogglePlayPause()
+        {
+            if (videoPlayer.isPlaying)
+            {
+                PauseVideo();
             }
             else
             {
-                videoPlayer.Stop();
+                PlayVideo();
             }
-            videoPlayer.url = url;
-            videoPlayer.isLooping = isLoop;
-            if (isActiveAndEnabled) Prepare();
         }
 
         protected virtual void Prepare()
         {
-            if (togglePlay != null) togglePlay.gameObject.SetActive(false);
-            textErrorMsg.gameObject.SetActive(false);
+            if (videoPlayer.isPrepared || isPreparing) return;
+
+            SetupAudioTrack();
+
+            isPreparing = true;
+            if (textErrorMsg != null) textErrorMsg.gameObject.SetActive(false);
+            UpdateUIState(isPlaying: false);
             videoPlayer.Prepare();
         }
 
         protected virtual void OnVideoError(VideoPlayer source, string message)
         {
             Debug.LogError("VideoPlayer Error: " + message);
-            textErrorMsg.gameObject.SetActive(true);
-            textErrorMsg.text = message;
-            videoPlayer.Stop();
-            if (togglePlay != null)
+            isPreparing = false;
+            isPlayAfterPrepare = false;
+            if (textErrorMsg != null)
             {
-                togglePlay.isOn = true;
+                textErrorMsg.gameObject.SetActive(true);
+                textErrorMsg.text = message;
             }
-            if (togglePlay != null) togglePlay.gameObject.SetActive(false);
+            videoPlayer.Stop();
+            UpdateUIState(isPlaying: false);
         }
 
         protected virtual void OnVideoPrepared(VideoPlayer source)
         {
-            if (togglePlay != null) togglePlay.gameObject.SetActive(true && showPlayButton);
+            isPreparing = false;
+
+            if (source.audioTrackCount > 0)
+            {
+                source.controlledAudioTrackCount = (ushort)Mathf.Max(1, source.audioTrackCount);
+                source.EnableAudioTrack(0, true);
+                if (source.audioOutputMode == VideoAudioOutputMode.AudioSource && AudioSource != null)
+                {
+                    source.SetTargetAudioSource(0, AudioSource);
+                }
+            }
 
             if (isPlayAfterPrepare)
             {
-                PlayVideo();
+                if (videoPlayer.isPlaying)
+                {
+                    TriggerPlayStart();
+                    UpdateUIState(isPlaying: true);
+                }
+                else
+                {
+                    PlayVideo();
+                }
             }
             else
             {
                 videoPlayer.Pause();
-                if (togglePlay != null)
-                {
-                    togglePlay.isOn = true;
-                }
+                videoPlayer.frame = 0;
+                UpdateUIState(isPlaying: false);
             }
         }
 
         protected virtual void OnVideoEnd(VideoPlayer source)
         {
-            if (!source.isLooping)
+            if (source.isLooping)
             {
-                source.Pause();
-                M5Event enableEvent = VideoEvents.CreatePlayFinishEvent(this, this, Url);
-                EventManager.TriggerEvent(enableEvent);
-
-                if (togglePlay != null)
-                {
-                    togglePlay.isOn = true;
-                }
-            }
-        }
-
-        protected virtual void OnTogglePlayChanged(bool value)
-        {
-            if (value)
-            {
-                if (videoPlayer.isPlaying)
-                {
-                    PauseVideo();
-                }
+                TriggerLoopPointReached();
             }
             else
             {
-                if (!videoPlayer.isPlaying)
-                {
-                    PlayVideo();
-                }
+                source.Pause();
+                TriggerPlayFinish();
+                UpdateUIState(isPlaying: false);
             }
+        }
+
+        protected virtual void UpdateUIState(bool isPlaying)
+        {
         }
 
         [ContextMenu("Play")]
         public virtual void PlayVideo()
         {
-            if (videoPlayer.isPrepared)
+            if (!videoPlayer.isPlaying)
             {
-                videoPlayer.Play();
-                M5Event enableEvent = VideoEvents.CreatePlayStartEvent(this, this, Url);
-                EventManager.TriggerEvent(enableEvent);
-            }
-            else
-            {
-                isPlayAfterPrepare = true;
-                videoPlayer.Prepare();
+                if (videoPlayer.isPrepared)
+                {
+                    videoPlayer.Play();
+                    if (videoPlayer.audioOutputMode == VideoAudioOutputMode.AudioSource && AudioSource != null && !AudioSource.isPlaying)
+                    {
+                        AudioSource.Play();
+                    }
+                    TriggerPlayStart();
+                }
+                else
+                {
+                    isPlayAfterPrepare = true;
+                    if (!isPreparing)
+                    {
+                        Prepare();
+                    }
+                }
             }
 
-            if (togglePlay != null)
-            {
-                togglePlay.isOn = false;
-            }
+            UpdateUIState(isPlaying: true);
         }
 
         [ContextMenu("Pause")]
         public virtual void PauseVideo()
         {
-            if(videoPlayer.isPlaying)
+            if (isPreparing)
             {
-                videoPlayer.Pause();
-                M5Event enableEvent = VideoEvents.CreatePlayPauseEvent(this, this, Url);
-                EventManager.TriggerEvent(enableEvent);
+                isPlayAfterPrepare = false;
             }
 
-            if (togglePlay != null)
-            {
-                togglePlay.isOn = true;
-            }
-        }
-
-        public virtual void StopVideo()
-        {
             if (videoPlayer.isPlaying)
             {
-                videoPlayer.Stop();
-                M5Event enableEvent = VideoEvents.CreatePlayStopEvent(this, this, Url);
-                EventManager.TriggerEvent(enableEvent);
+                videoPlayer.Pause();
+                if (videoPlayer.audioOutputMode == VideoAudioOutputMode.AudioSource && AudioSource != null && AudioSource.isPlaying)
+                {
+                    AudioSource.Pause();
+                }
+                TriggerPlayPause();
             }
 
-            if (togglePlay != null)
+            UpdateUIState(isPlaying: false);
+        }
+
+        [ContextMenu("Stop")]
+        public virtual void StopVideo()
+        {
+            if (isPreparing)
             {
-                togglePlay.isOn = true;
+                videoPlayer.Stop();
+                isPreparing = false;
+                isPlayAfterPrepare = false;
             }
+
+            if (videoPlayer.isPrepared)
+            {
+                videoPlayer.Pause();
+                videoPlayer.frame = 0;
+                if (videoPlayer.audioOutputMode == VideoAudioOutputMode.AudioSource && AudioSource != null)
+                {
+                    AudioSource.Stop();
+                }
+                TriggerPlayStop();
+            }
+
+            UpdateUIState(isPlaying: false);
+        }
+
+        protected void TriggerPlayStart()
+        {
+            if (EventManager == null) return;
+            M5Event enableEvent = new VideoEvents.PlayStartEvent(this, this, Url);
+            EventManager.TriggerEvent(enableEvent);
+        }
+
+        protected void TriggerPlayPause()
+        {
+            if (EventManager == null) return;
+            M5Event enableEvent = new VideoEvents.PlayPauseEvent(this, this, Url);
+            EventManager.TriggerEvent(enableEvent);
+        }
+
+        protected void TriggerPlayStop()
+        {
+            if (EventManager == null) return;
+            M5Event enableEvent = new VideoEvents.PlayStopEvent(this, this, Url);
+            EventManager.TriggerEvent(enableEvent);
+        }
+
+        protected void TriggerPlayFinish()
+        {
+            if (EventManager == null) return;
+            M5Event enableEvent = new VideoEvents.PlayFinishEvent(this, this, Url);
+            EventManager.TriggerEvent(enableEvent);
+        }
+
+        protected void TriggerLoopPointReached()
+        {
+            if (EventManager == null) return;
+            M5Event loopEvent = new VideoEvents.LoopPointReachedEvent(this, this, Url);
+            EventManager.TriggerEvent(loopEvent);
         }
 
         protected virtual void OnDestroy()
         {
-            videoPlayer.Stop();
-            videoPlayer.prepareCompleted -= OnVideoPrepared;
-            videoPlayer.loopPointReached -= OnVideoEnd;
-            videoPlayer.errorReceived -= OnVideoError;
+            isPreparing = false;
+            if (videoPlayer != null)
+            {
+                videoPlayer.Stop();
+                videoPlayer.prepareCompleted -= OnVideoPrepared;
+                videoPlayer.loopPointReached -= OnVideoEnd;
+                videoPlayer.errorReceived -= OnVideoError;
+            }
         }
     }
 }

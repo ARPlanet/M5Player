@@ -62,6 +62,7 @@ namespace Module5.Player
                     materialMask.EnableKeyword("UNITY_UI_ALPHACLIP");
                     materialMask.SetFloat("_StencilComp", 8.0f);
                     materialMask.SetFloat("_StencilOp", 2.0f);
+                    materialMask.SetFloat("_ColorMask", 0f);
                     materialMask.renderQueue = 2999;
                 }
                 return materialMask;

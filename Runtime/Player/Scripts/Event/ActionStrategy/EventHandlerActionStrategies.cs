@@ -6,39 +6,39 @@ using UnityEngine;
 
 namespace Module5.Player
 {
+    [Command("Event Handler", "Enable")]
     public class EventHandlerEnableActionStrategy : IActionStrategy
     {
+        public const string CommandKey = "event_handler_enable";
+        string IActionStrategy.CommandKey => CommandKey;
         public const string ParamTarget = "target";
         public const string ParamEvent = "event";
 
-        public Dictionary<string, object> DefaultParameters => new Dictionary<string, object>
+        public IReadOnlyDictionary<string, ParameterDefinition> ParameterDefinitions => new Dictionary<string, ParameterDefinition>
         {
-            { ParamTarget, Guid.Empty.ToString() },
-            { ParamEvent, Guid.Empty.ToString() }
+            { ParamTarget, ParameterDefinition.CreateObject<EventComponent>() },
+            { ParamEvent, ParameterDefinition.CreateGuid() }
         };
 
-        public IEnumerator Execute(M5Command command)
+        public IEnumerator Execute(M5Command command, ActionExecutionContext context)
         {
-            SetEventHandlerEnabled(command, true);
+            SetEventHandlerEnabled(command, context, true);
             yield break;
         }
 
-        private void SetEventHandlerEnabled(M5Command command, bool enabled)
+        private void SetEventHandlerEnabled(M5Command command, ActionExecutionContext context, bool enabled)
         {
             var eventComponent = (EventComponent)command.Parameters[ParamTarget];
             if (eventComponent != null)
             {
-                object eventVal = command.Parameters[ParamEvent];
-                Guid eventGuid = Guid.Empty;
-                if (eventVal is Guid g) eventGuid = g;
-                else if (eventVal is string s && Guid.TryParse(s, out Guid parsed)) eventGuid = parsed;
+                Guid eventVal = (Guid)command.Parameters[ParamEvent];
 
-                if (eventGuid != Guid.Empty && eventComponent.eventHandlers != null)
+                if (eventVal != Guid.Empty && eventComponent.eventHandlers != null)
                 {
-                    var handler = eventComponent.eventHandlers.FirstOrDefault(h => h.Guid == eventGuid);
+                    var handler = eventComponent.eventHandlers.FirstOrDefault(h => h.Guid == eventVal);
                     if (handler != null)
                     {
-                        Debug.Log($"[Action {command.CommandType}][target={eventComponent.gameObject.name}, handler={handler.Name}, enabled={enabled}]");
+                        Debug.Log($"{context.LogPrefix}[Action {command.CommandType}][target={eventComponent.gameObject.name}, handler={handler.Name}, enabled={enabled}]");
                         handler.Enabled = enabled;
                     }
                 }
@@ -46,39 +46,39 @@ namespace Module5.Player
         }
     }
 
+    [Command("Event Handler", "Disable")]
     public class EventHandlerDisableActionStrategy : IActionStrategy
     {
+        public const string CommandKey = "event_handler_disable";
+        string IActionStrategy.CommandKey => CommandKey;
         public const string ParamTarget = "target";
         public const string ParamEvent = "event";
 
-        public Dictionary<string, object> DefaultParameters => new Dictionary<string, object>
+        public IReadOnlyDictionary<string, ParameterDefinition> ParameterDefinitions => new Dictionary<string, ParameterDefinition>
         {
-            { ParamTarget, Guid.Empty.ToString() },
-            { ParamEvent, Guid.Empty.ToString() }
+            { ParamTarget, ParameterDefinition.CreateObject<EventComponent>() },
+            { ParamEvent, ParameterDefinition.CreateGuid() }
         };
 
-        public IEnumerator Execute(M5Command command)
+        public IEnumerator Execute(M5Command command, ActionExecutionContext context)
         {
-            SetEventHandlerEnabled(command, false);
+            SetEventHandlerEnabled(command, context, false);
             yield break;
         }
 
-        private void SetEventHandlerEnabled(M5Command command, bool enabled)
+        private void SetEventHandlerEnabled(M5Command command, ActionExecutionContext context, bool enabled)
         {
             var eventComponent = (EventComponent)command.Parameters[ParamTarget];
             if (eventComponent != null)
             {
-                object eventVal = command.Parameters[ParamEvent];
-                Guid eventGuid = Guid.Empty;
-                if (eventVal is Guid g) eventGuid = g;
-                else if (eventVal is string s && Guid.TryParse(s, out Guid parsed)) eventGuid = parsed;
+                Guid eventVal = (Guid)command.Parameters[ParamEvent];
 
-                if (eventGuid != Guid.Empty && eventComponent.eventHandlers != null)
+                if (eventVal != Guid.Empty && eventComponent.eventHandlers != null)
                 {
-                    var handler = eventComponent.eventHandlers.FirstOrDefault(h => h.Guid == eventGuid);
+                    var handler = eventComponent.eventHandlers.FirstOrDefault(h => h.Guid == eventVal);
                     if (handler != null)
                     {
-                        Debug.Log($"[Action {command.CommandType}][target={eventComponent.gameObject.name}, handler={handler.Name}, enabled={enabled}]");
+                        Debug.Log($"{context.LogPrefix}[Action {command.CommandType}][target={eventComponent.gameObject.name}, handler={handler.Name}, enabled={enabled}]");
                         handler.Enabled = enabled;
                     }
                 }

@@ -11,7 +11,7 @@ namespace Module5.Player
     {
 
     }
-
+    [Alias("VR 360")]
     public class VR360 : MonoBehaviour, IVR360
     {
         [Inject] ISceneManager SceneManager { get; set; }
@@ -38,18 +38,7 @@ namespace Module5.Player
             set
             {
                 isOverrideFov = value;
-                if (isActiveAndEnabled)
-                {
-                    SyncVirtualCamera syncVirtualCamera = SceneManager.VirtualCamera.GetComponent<SyncVirtualCamera>();
-                    if (syncVirtualCamera != null)
-                    {
-                        syncVirtualCamera.enabled = !IsOverrideFov;
-                    }
-                    if (value)
-                    {
-                        SceneManager.VirtualCamera.fieldOfView = fov;
-                    }
-                }
+                ApplyFovToCamera();
             }
         }
 
@@ -60,10 +49,24 @@ namespace Module5.Player
             set
             {
                 fov = value;
-                if (isActiveAndEnabled && IsOverrideFov)
+                if (isOverrideFov)
                 {
-                    SceneManager.VirtualCamera.fieldOfView = fov;
+                    ApplyFovToCamera();
                 }
+            }
+        }
+
+        private void ApplyFovToCamera()
+        {
+            if (SceneManager == null || SceneManager.VirtualCamera == null) return;
+            SyncVirtualCamera syncVirtualCamera = SceneManager.VirtualCamera.GetComponent<SyncVirtualCamera>();
+            if (syncVirtualCamera != null)
+            {
+                syncVirtualCamera.SetFovOverride(isActiveAndEnabled && isOverrideFov, fov);
+            }
+            else if (isActiveAndEnabled && isOverrideFov)
+            {
+                SceneManager.VirtualCamera.fieldOfView = fov;
             }
         }
 
@@ -111,21 +114,19 @@ namespace Module5.Player
         {
             if (isOverrideFov)
             {
-                SyncVirtualCamera syncVirtualCamera = SceneManager.VirtualCamera.GetComponent<SyncVirtualCamera>();
-                if (syncVirtualCamera != null)
-                {
-                    syncVirtualCamera.enabled = false;
-                }
-                SceneManager.VirtualCamera.fieldOfView = fov;
+                ApplyFovToCamera();
             }
         }
 
         protected virtual void OnDisable()
         {
-            SyncVirtualCamera syncVirtualCamera = SceneManager.VirtualCamera.GetComponent<SyncVirtualCamera>();
-            if (syncVirtualCamera != null)
+            if (isOverrideFov && SceneManager != null && SceneManager.VirtualCamera != null)
             {
-                syncVirtualCamera.enabled = true;
+                SyncVirtualCamera syncVirtualCamera = SceneManager.VirtualCamera.GetComponent<SyncVirtualCamera>();
+                if (syncVirtualCamera != null)
+                {
+                    syncVirtualCamera.SetFovOverride(false);
+                }
             }
         }
         private void OnDestroy()

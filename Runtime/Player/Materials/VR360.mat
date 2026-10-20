@@ -78,6 +78,10 @@ Material:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
+    - _PlayIconTex:
+        m_Texture: {fileID: 2800000, guid: 3b0fd6547dbadf24b8e972379c41cf8b, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     - _RightTex:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
@@ -109,7 +113,10 @@ Material:
     - _Mode: 0
     - _OcclusionStrength: 1
     - _Parallax: 0.02
+    - _PlayIconCurvature: 0
+    - _PlayIconSize: 0.5
     - _Rotation: 0
+    - _ShowPlayIcon: 0
     - _SmoothnessTextureChannel: 0
     - _SpecularHighlights: 1
     - _SrcBlend: 1
@@ -120,6 +127,9 @@ Material:
     - _ZWrite: 1
     m_Colors:
     - _Color: {r: 1, g: 1, b: 1, a: 1}
+    - _DecalForward: {r: 0, g: 0, b: 1, a: 0}
+    - _DecalRight: {r: 1, g: 0, b: 0, a: 0}
+    - _DecalUp: {r: 0, g: 1, b: 0, a: 0}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
     - _GroundColor: {r: 0.369, g: 0.349, b: 0.341, a: 1}
     - _SkyTint: {r: 0.5, g: 0.5, b: 0.5, a: 1}

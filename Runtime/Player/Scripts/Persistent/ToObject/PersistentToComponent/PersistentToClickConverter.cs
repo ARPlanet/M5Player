@@ -15,6 +15,7 @@ namespace Module5.Player
             PersistentClick persistentPressHandler = (PersistentClick)persistent;
             comp.enableLongTap = persistentPressHandler.enableLongTap;
             comp.longTapThreshold = persistentPressHandler.longTapThreshold;
+            comp.clickCooldown = persistentPressHandler.clickCooldown;
 
             return Task.CompletedTask;
         }

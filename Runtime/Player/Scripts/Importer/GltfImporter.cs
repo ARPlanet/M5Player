@@ -10,6 +10,7 @@ using GLTFast.Schema;
 
 namespace Module5.Player
 {
+    [Alias("Gltf")]
     public class GltfImportData : IModelData
     {
         public GltfImport gltfImport;

@@ -8,7 +8,7 @@ namespace Module5.Player
         {
             if (registry == null) return;
 
-            registry.RegisterConverter<PersistentAudioObject, PersistentToAudioObjectConverter>(GameObjectTypes.AudioSource);
+            registry.RegisterConverter<PersistentAudioPlayerObject, PersistentToAudioPlayerObjectConverter>(GameObjectTypes.AudioPlayer);
             registry.RegisterConverter<PersistentBoxColliderObject, PersistentToBoxColliderObjectConverter>(GameObjectTypes.BoxCollider);
             registry.RegisterConverter<PersistentButtonObject, PersistentToButtonObjectConverter>(GameObjectTypes.Button);
             registry.RegisterConverter<PersistentCanvasObject, PersistentToCanvasObjectConverter>(GameObjectTypes.Canvas);

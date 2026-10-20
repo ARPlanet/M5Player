@@ -41,6 +41,12 @@ namespace Module5.Player
         /// <summary>此 Item 被點擊選取時觸發，攜帶對應的 ConsoleLogEntry</summary>
         public event Action<ConsoleLogEntry> OnSelected;
 
+        /// <summary>此 Item 當前綁定的 ConsoleLogEntry</summary>
+        public ConsoleLogEntry Entry => _entry;
+
+        RectTransform _rectTransform;
+        public RectTransform RectTransform => _rectTransform ??= (RectTransform)transform;
+
         ConsoleLogEntry _entry;
 
         // ── 公開方法 ──────────────────────────────────────────────────────────

@@ -1,4 +1,4 @@
-﻿using Module5.Player;
+using Module5.Player;
 using System.Collections.Generic;
 using UnityEngine;
 using Module5.DI;
@@ -15,7 +15,7 @@ namespace Module5
 
             Collider col = GetComponent<Collider>();
 
-            M5Event enableEvent = TriggerEvents.CreateEnterEvent(col, col, other);
+            M5Event enableEvent = new TriggerEvents.EnterEvent(col, col, other);
             EventManager.TriggerEvent(enableEvent);
         }
 
@@ -25,7 +25,7 @@ namespace Module5
 
             Collider col = GetComponent<Collider>();
 
-            M5Event enableEvent = TriggerEvents.CreateExitEvent(col, col, other);
+            M5Event enableEvent = new TriggerEvents.ExitEvent(col, col, other);
             EventManager.TriggerEvent(enableEvent);
         }
     }

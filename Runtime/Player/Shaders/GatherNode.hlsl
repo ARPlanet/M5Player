@@ -7,8 +7,7 @@
 // Call this function in the Vertex stage of the Shader Graph.
 void GatherVertex_float(
     float3 OriginalPositionOS,
-    float ScanY,
-    float FadeRange,
+    float Progress,
     float SpiralIntensity,
     float ExpandScale,
     out float3 ModifiedPositionOS
@@ -20,8 +19,8 @@ void GatherVertex_float(
     // Relative world position
     float3 relPos = worldPos - worldCenter;
 
-    // Fade factor based on Y height
-    float factor = saturate((worldPos.y - ScanY) / FadeRange);
+    // Uniform progress (0.0 = complete, 1.0 = fully dissolved/expanded)
+    float factor = saturate(Progress);
 
     // Spiral rotation
     float rotation = factor * SpiralIntensity * PI;
@@ -30,9 +29,9 @@ void GatherVertex_float(
     float2x2 rot = float2x2(cosA, -sinA, sinA, cosA);
     relPos.xz = mul(rot, relPos.xz);
 
-    // Expansion
+    // Expansion (XYZ scale)
     float expandScaleVal = 1.0 + factor * ExpandScale;
-    relPos.xz *= expandScaleVal;
+    relPos *= expandScaleVal;
 
     // Convert back to Object Space
     float3 finalWorldPos = worldCenter + relPos;
@@ -46,8 +45,7 @@ void GatherVertex_float(
 void GatherFragment_float(
     float3 OriginalPositionOS,
     float3 OriginalNormalOS,
-    float ScanY,
-    float FadeRange,
+    float Progress,
     float NoiseTiling,
     float BaseGrainPixelSize,
     float EdgeWidth,
@@ -67,8 +65,8 @@ void GatherFragment_float(
     float3 blending = abs(worldNormal);
     blending /= (blending.x + blending.y + blending.z + 1e-5);
 
-    // Distance Factor
-    float distFactor = saturate((worldPos.y - ScanY) / FadeRange);
+    // Uniform progress factor (0.0 ~ 1.0)
+    float distFactor = saturate(Progress);
 
     // View Depth for dynamic tiling (Compensation for resolution/distance)
     float3 viewPos = TransformWorldToView(worldPos);
@@ -85,16 +83,16 @@ void GatherFragment_float(
     float noiseZ = SAMPLE_TEXTURE2D(NoiseTex.tex, Sampler_NoiseTex.samplerstate, relWorldPos.xy * finalTiling).r;
     float noiseVal = noiseX * blending.x + noiseY * blending.y + noiseZ * blending.z;
 
-    // Clip Threshold
-    float dissolveStep = 1.1 + EdgeWidth;
-    float currentThreshold = noiseVal - (distFactor * dissolveStep);
+    // Clip Threshold based on global progress
+    float dissolveRange = 1.0 + EdgeWidth;
+    float currentThreshold = noiseVal - (distFactor * dissolveRange);
     
     // Output 0 for discard, 1 for keep (to be plugged into Alpha / Alpha Clip Threshold)
     ClipMask = currentThreshold < 0.0 ? 0.0 : 1.0;
 
     // Edge Glow
     float edge = 1.0 - saturate(currentThreshold / (EdgeWidth + 1e-5));
-    float edgeWeight = saturate(distFactor * 10.0) * saturate((1.0 - distFactor) * 20.0);
+    float edgeWeight = saturate(distFactor * 10.0) * saturate((1.0 - distFactor) * 10.0);
     float edgeGlowAmount = edge * edgeWeight;
 
     // Edge glow color multiplier (add this to existing Emission)

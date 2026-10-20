@@ -4,13 +4,16 @@ using UnityEngine;
 
 namespace Module5.Player
 {
+    [Command("Interaction", "Open")]
     public class InteractionOpenActionStrategy : IActionStrategy
     {
+        public const string CommandKey = "interaction_open";
+        string IActionStrategy.CommandKey => CommandKey;
         public const string ParamUri = "uri";
 
-        public Dictionary<string, object> DefaultParameters => new Dictionary<string, object>
+        public IReadOnlyDictionary<string, ParameterDefinition> ParameterDefinitions => new Dictionary<string, ParameterDefinition>
         {
-            { ParamUri, string.Empty }
+            { ParamUri, ParameterDefinition.Create<string>(string.Empty) }
         };
 
         private readonly IProjectManager _projectManager;
@@ -22,14 +25,14 @@ namespace Module5.Player
             _downloader = new GoogleDriveDownloader();
         }
 
-        public IEnumerator Execute(M5Command command)
+        public IEnumerator Execute(M5Command command, ActionExecutionContext context)
         {
             string uri = (string)command.Parameters[ParamUri];
-            Debug.Log($"[Action {command.CommandType}][uri={uri}]");
+            Debug.Log($"{context.LogPrefix}[Action {command.CommandType}][uri={uri}]");
             string driveId = GoogleDriveDownloader.TryExtractFileId(uri);
             if (string.IsNullOrEmpty(driveId))
             {
-                Debug.LogWarning("[InteractionOpen] 無法從連結中提取檔案 ID。");
+                Debug.LogWarning($"{context.LogPrefix}[InteractionOpen] 無法從連結中提取檔案 ID。");
                 yield break;
             }
 
@@ -38,7 +41,7 @@ namespace Module5.Player
 
             if (downloadTask.IsFaulted || string.IsNullOrEmpty(downloadTask.Result))
             {
-                Debug.LogError("[InteractionOpen] 下載或解壓縮失敗。");
+                Debug.LogError($"{context.LogPrefix}[InteractionOpen] 下載或解壓縮失敗。");
                 yield break;
             }
 
@@ -48,9 +51,12 @@ namespace Module5.Player
         }
     }
 
+    [Command("Interaction", "Close")]
     public class InteractionCloseActionStrategy : IActionStrategy
     {
-        public Dictionary<string, object> DefaultParameters => new Dictionary<string, object>();
+        public const string CommandKey = "interaction_close";
+        string IActionStrategy.CommandKey => CommandKey;
+        public IReadOnlyDictionary<string, ParameterDefinition> ParameterDefinitions => new Dictionary<string, ParameterDefinition>();
 
         private readonly IProjectManager _projectManager;
 
@@ -59,9 +65,9 @@ namespace Module5.Player
             _projectManager = projectManager;
         }
 
-        public IEnumerator Execute(M5Command command)
+        public IEnumerator Execute(M5Command command, ActionExecutionContext context)
         {
-            Debug.Log($"[Action {command.CommandType}]");
+            Debug.Log($"{context.LogPrefix}[Action {command.CommandType}]");
             _projectManager.Unload();
             yield break;
         }

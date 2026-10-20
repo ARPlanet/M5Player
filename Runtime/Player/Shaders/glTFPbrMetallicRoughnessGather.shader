@@ -13,9 +13,7 @@ Shader "Custom/glTFPbrMetallicRoughnessGather"
         emissiveFactor("Emissive", Color) = (0,0,0)
         metallicFactor ("Metallic", Range(0,1)) = 1.0
         roughnessFactor ("Roughness", Range(0,1)) = 1.0
-
-        [HideInInspector] _ScanY("Scan Y", Float) = 0
-        [HideInInspector] _FadeRange("Fade Range", Float) = 1.0
+        [HideInInspector] _Progress("Progress", Float) = 0.0
         [HideInInspector] _NoiseTiling("Noise Tiling", Float) = 1.0
         [HideInInspector] _BaseGrainPixelSize ("Base Grain Pixel Size", Float) = 50.0
         [HideInInspector] _ExpandScale("Expand Scale", Float) = 2.0
@@ -70,14 +68,14 @@ Shader "Custom/glTFPbrMetallicRoughnessGather"
                 float metallicFactor;
                 float roughnessFactor;
 
-                float _ScanY;
-                float _FadeRange;
+                float _Progress;
                 float _NoiseTiling;
                 float _BaseGrainPixelSize;
                 float _ExpandScale;
                 float _SpiralIntensity;
                 float4 _EdgeColor;
                 float _EdgeWidth;
+                float _IsScreenSpace;
             CBUFFER_END
 
             TEXTURE2D(_MainTex);
@@ -104,7 +102,8 @@ Shader "Custom/glTFPbrMetallicRoughnessGather"
                 float3 worldCenter = float3(UNITY_MATRIX_M[0][3], UNITY_MATRIX_M[1][3], UNITY_MATRIX_M[2][3]);
                 float3 relPos = worldPos - worldCenter;
 
-                float factor = saturate((worldPos.y - _ScanY) / _FadeRange);
+                // 全域消融進度 (0.0 = 完全實體顯示, 1.0 = 完全消融擴散)
+                float factor = saturate(_Progress);
                 output.data0.w = factor;
                 output.data0.xyz = relPos; // 設定相對座標作為噪點取樣點 (在變形之前)
 
@@ -115,7 +114,7 @@ Shader "Custom/glTFPbrMetallicRoughnessGather"
                 relPos.xz = mul(rot, relPos.xz);
 
                 float expandScale = 1.0 + factor * _ExpandScale;
-                relPos.xz *= expandScale;
+                relPos *= expandScale;
 
                 float3 finalWorldPos = worldCenter + relPos;
                 output.positionCS = TransformWorldToHClip(finalWorldPos);
@@ -151,7 +150,7 @@ Shader "Custom/glTFPbrMetallicRoughnessGather"
                 float noiseZ = SAMPLE_TEXTURE2D(_NoiseTex, sampler_NoiseTex, relWorldPos.xy * finalTiling).r;
                 float noiseVal = noiseX * blending.x + noiseY * blending.y + noiseZ * blending.z;
 
-                float dissolveStep = 1.1 + _EdgeWidth;
+                float dissolveStep = 1.0 + _EdgeWidth;
                 float currentThreshold = noiseVal - (distFactor * dissolveStep);
                 clip(currentThreshold);
 

@@ -30,6 +30,13 @@ namespace Module5.Player
             }
         }
 
+        private Shader GetUIShader()
+        {
+            return Shader.Find("UI/Default")
+                ?? Canvas.GetDefaultCanvasMaterial()?.shader
+                ?? Text?.defaultMaterial?.shader;
+        }
+
         Material materialMask;
         Material MaterialMask
         {
@@ -37,7 +44,7 @@ namespace Module5.Player
             {
                 if (materialMask == null)
                 {
-                    materialMask = new Material(Shader.Find("UI/Default Font"));
+                    materialMask = new Material(GetUIShader());
                     materialMask.name = $"Xray Text Mask (Instance)";
                     materialMask.SetFloat("_UseUIAlphaClip", 1.0f);
                     materialMask.EnableKeyword("UNITY_UI_ALPHACLIP");
@@ -56,7 +63,7 @@ namespace Module5.Player
             {
                 if (materialObject == null)
                 {
-                    materialObject = new Material(Shader.Find("UI/Default Font"));
+                    materialObject = new Material(GetUIShader());
                     materialObject.name = $"Xray Text (Instance)";
                     materialObject.SetFloat("_StencilComp", 3.0f);
                     materialObject.SetFloat("_StencilOp", 0f);

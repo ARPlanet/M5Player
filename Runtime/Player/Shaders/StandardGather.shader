@@ -7,8 +7,7 @@ Shader "Custom/StandardGather"
         _Glossiness ("Smoothness", Range(0,1)) = 0.5
         _Metallic ("Metallic", Range(0,1)) = 0.0
         
-        [HideInInspector] _ScanY("Scan Y", Float) = 0
-        [HideInInspector] _FadeRange("Fade Range", Float) = 1.0
+        [HideInInspector] _Progress("Progress", Float) = 0.0
         [HideInInspector] _NoiseTiling("Noise Tiling", Float) = 1.0
         [HideInInspector] _NoiseTex("Noise Texture", 2D) = "white" {}
         [HideInInspector] _ExpandScale("Expand Scale", Float) = 2.0
@@ -60,14 +59,14 @@ Shader "Custom/StandardGather"
                 float _Glossiness;
                 float _Metallic;
 
-                float _ScanY;
-                float _FadeRange;
+                float _Progress;
                 float _NoiseTiling;
                 float _BaseGrainPixelSize;
                 float _ExpandScale;
                 float _SpiralIntensity;
                 float4 _EdgeColor;
                 float _EdgeWidth;
+                float _IsScreenSpace;
             CBUFFER_END
 
             TEXTURE2D(_MainTex);
@@ -86,7 +85,8 @@ Shader "Custom/StandardGather"
                 float3 worldCenter = float3(UNITY_MATRIX_M[0][3], UNITY_MATRIX_M[1][3], UNITY_MATRIX_M[2][3]);
                 float3 relPos = worldPos - worldCenter;
 
-                float factor = saturate((worldPos.y - _ScanY) / _FadeRange);
+                // 全域消融進度 (0.0 = 完全實體顯示, 1.0 = 完全消融擴散)
+                float factor = saturate(_Progress);
                 output.data0.w = factor;
                 output.data0.xyz = relPos; // 設定相對座標作為噪點取樣點 (在變形之前)
 
@@ -97,7 +97,7 @@ Shader "Custom/StandardGather"
                 relPos.xz = mul(rot, relPos.xz);
 
                 float expandScale = 1.0 + factor * _ExpandScale;
-                relPos.xz *= expandScale;
+                relPos *= expandScale;
 
                 float3 finalWorldPos = worldCenter + relPos;
                 output.positionCS = TransformWorldToHClip(finalWorldPos);
@@ -131,14 +131,14 @@ Shader "Custom/StandardGather"
                 float noiseZ = SAMPLE_TEXTURE2D(_NoiseTex, sampler_NoiseTex, relWorldPos.xy * finalTiling).r;
                 float noiseVal = noiseX * blending.x + noiseY * blending.y + noiseZ * blending.z;
 
-                float dissolveStep = 1.1 + _EdgeWidth;
+                float dissolveStep = 1.0 + _EdgeWidth;
                 float currentThreshold = noiseVal - (distFactor * dissolveStep);
                 clip(currentThreshold);
 
                 half4 baseColor = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, input.uv) * _Color;
 
                 float edge = 1.0 - saturate(currentThreshold / (_EdgeWidth + 1e-5));
-                float edgeWeight = saturate(distFactor * 10.0) * saturate((1.0 - distFactor) * 20.0);
+                float edgeWeight = saturate(distFactor * 10.0) * saturate((1.0 - distFactor) * 10.0);
                 float edgeGlow = edge * edgeWeight;
 
                 half3 finalColor = lerp(baseColor.rgb, half3(0,0,0), edgeGlow);

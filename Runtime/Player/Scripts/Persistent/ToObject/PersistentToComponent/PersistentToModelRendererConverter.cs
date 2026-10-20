@@ -15,6 +15,8 @@ namespace Module5.Player
             PersistentModelRenderer persistentModelRender = persistent as PersistentModelRenderer;
 
             comp.playAutomatically = persistentModelRender.playAutomatic; // 必須先設定再設定模型
+            comp.currentClip = persistentModelRender.currentClip;
+            comp.currentWrapMode = persistentModelRender.currentWrapMode;
 
             if (Guid.TryParse(persistentModelRender.modelData, out Guid modelDataAssetGuid))
             {

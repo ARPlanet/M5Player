@@ -5,7 +5,7 @@ namespace Module5.Player
         public const string Event = "Event";
         public const string BoxCollider = "BoxCollider";
         public const string Light = "Light";
-        public const string AudioSource = "AudioSource";
+        public const string AudioPlayer = "AudioPlayer";
         public const string ModelRender = "ModelRender";
         public const string Panel = "Panel";
         public const string Canvas = "Canvas";
