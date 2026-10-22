@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
@@ -29,6 +29,18 @@ namespace Module5.Player
             }
         }
 
+        [Header("360 Sphere Settings")]
+        [SerializeField] protected VR360SphereType sphereType = VR360SphereType.Background;
+        public VR360SphereType SphereType
+        {
+            get => sphereType;
+            set
+            {
+                sphereType = value;
+                ApplySphereTypeToMaterial();
+            }
+        }
+
         [SerializeField] protected bool isOverrideFov = false;
         public bool IsOverrideFov
         {
@@ -51,6 +63,25 @@ namespace Module5.Player
                 {
                     ApplyFovToCamera();
                 }
+            }
+        }
+
+        public void ApplySphereTypeToMaterial()
+        {
+            if (meshRenderer == null || meshRenderer.material == null) return;
+            Material mat = meshRenderer.material;
+
+            if (sphereType == VR360SphereType.Background)
+            {
+                mat.SetInt("_ZTest", (int)UnityEngine.Rendering.CompareFunction.Always);
+                mat.SetInt("_ZWrite", 0);
+                mat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Background;
+            }
+            else
+            {
+                mat.SetInt("_ZTest", (int)UnityEngine.Rendering.CompareFunction.LessEqual);
+                mat.SetInt("_ZWrite", 1);
+                mat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Geometry;
             }
         }
 
@@ -81,6 +112,7 @@ namespace Module5.Player
             // 確保 VideoPlayer 的 RenderMode 為 MaterialOverride
             videoPlayer.renderMode = VideoRenderMode.MaterialOverride;
             SetupInvertedMeshCollider();
+            ApplySphereTypeToMaterial();
         }
 
         private void SetupInvertedMeshCollider()
@@ -186,6 +218,7 @@ namespace Module5.Player
         protected override void OnEnable()
         {
             base.OnEnable();
+            ApplySphereTypeToMaterial();
             if (isOverrideFov)
             {
                 ApplyFovToCamera();

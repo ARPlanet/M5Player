@@ -20,6 +20,7 @@ namespace Module5.Player
             comp.IsLoop = persistentVideoPlayer.isLoop;
             comp.playOnAwake = persistentVideoPlayer.playOnAwake;
             comp.ShowPlayButton = persistentVideoPlayer.showPlayButton;
+            comp.SphereType = persistentVideoPlayer.sphereType;
             comp.IsOverrideFov = persistentVideoPlayer.isOverrideFov;
             comp.Fov = persistentVideoPlayer.fov;
             return Task.CompletedTask;

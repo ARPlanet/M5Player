@@ -24,6 +24,7 @@ namespace Module5.Player
             }
 
             comp.Size = persistentVR360.size;
+            comp.SphereType = persistentVR360.sphereType;
             comp.IsOverrideFov = persistentVR360.isOverrideFov;
             comp.Fov = persistentVR360.fov;
             return Task.CompletedTask;

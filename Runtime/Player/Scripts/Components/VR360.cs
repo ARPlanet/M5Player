@@ -1,4 +1,4 @@
-﻿using GLTFast;
+using GLTFast;
 using System.Collections;
 using System.Collections.Generic;
 using System.Threading;
@@ -7,10 +7,20 @@ using UnityEngine;
 using Module5.DI;
 namespace Module5.Player
 {
+    public enum VR360SphereType
+    {
+        Background = 0,   // 全景背景：ZTest Always, ZWrite Off, Queue Background (預設)
+        SpatialObject = 1 // 空間物件：ZTest LEqual, ZWrite On, Queue Geometry
+    }
+
     public interface IVR360
     {
-
+        VR360SphereType SphereType { get; set; }
+        bool IsOverrideFov { get; set; }
+        float Fov { get; set; }
+        float Size { get; set; }
     }
+
     [Alias("VR 360")]
     public class VR360 : MonoBehaviour, IVR360
     {
@@ -28,6 +38,18 @@ namespace Module5.Player
                     materialInstance = meshRenderer.material; // unity會自動複製一個新的材質球Instance
                 }
                 return materialInstance;
+            }
+        }
+
+        [Header("360 Sphere Settings")]
+        [SerializeField] protected VR360SphereType sphereType = VR360SphereType.Background;
+        public VR360SphereType SphereType
+        {
+            get => sphereType;
+            set
+            {
+                sphereType = value;
+                ApplySphereTypeToMaterial();
             }
         }
 
@@ -53,6 +75,24 @@ namespace Module5.Player
                 {
                     ApplyFovToCamera();
                 }
+            }
+        }
+
+        public void ApplySphereTypeToMaterial()
+        {
+            if (MaterialInstance == null) return;
+
+            if (sphereType == VR360SphereType.Background)
+            {
+                MaterialInstance.SetInt("_ZTest", (int)UnityEngine.Rendering.CompareFunction.Always);
+                MaterialInstance.SetInt("_ZWrite", 0);
+                MaterialInstance.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Background;
+            }
+            else
+            {
+                MaterialInstance.SetInt("_ZTest", (int)UnityEngine.Rendering.CompareFunction.LessEqual);
+                MaterialInstance.SetInt("_ZWrite", 1);
+                MaterialInstance.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Geometry;
             }
         }
 
@@ -112,6 +152,7 @@ namespace Module5.Player
 
         protected virtual void OnEnable()
         {
+            ApplySphereTypeToMaterial();
             if (isOverrideFov)
             {
                 ApplyFovToCamera();

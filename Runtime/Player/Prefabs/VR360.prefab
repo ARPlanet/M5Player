@@ -48,6 +48,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   meshRenderer: {fileID: 6996624196120666608}
   materialInstance: {fileID: 0}
+  sphereType: 0
   isOverrideFov: 0
   fov: 60
   texture: {fileID: 0}
@@ -91,7 +92,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 100, y: 100, z: 100}
+  m_LocalScale: {x: 30.000002, y: 30.000002, z: 30.000002}
   m_ConstrainProportionsScale: 1
   m_Children: []
   m_Father: {fileID: 7784088138354839442}

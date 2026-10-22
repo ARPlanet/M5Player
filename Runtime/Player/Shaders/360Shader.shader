@@ -19,11 +19,17 @@ Shader "Unlit/360Shader" {
 		_DecalForward("Decal Forward", Vector) = (0, 0, 1, 0)
 		_DecalRight("Decal Right", Vector) = (1, 0, 0, 0)
 		_DecalUp("Decal Up", Vector) = (0, 1, 0, 0)
+
+		[Header(Depth and Queue Settings)]
+		[Enum(UnityEngine.Rendering.CompareFunction)] _ZTest("ZTest", Float) = 8
+		[Enum(Off, 0, On, 1)] _ZWrite("ZWrite", Float) = 0
 	}
 
 		SubShader{
 			Tags { "Queue" = "Background" "RenderType" = "Background" "PreviewType" = "Skybox" }
-			Cull Front ZWrite ON ZTest ON
+			Cull Front
+			ZWrite [_ZWrite]
+			ZTest [_ZTest]
 
 			Pass {
 

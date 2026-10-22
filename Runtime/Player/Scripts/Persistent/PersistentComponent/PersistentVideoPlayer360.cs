@@ -15,5 +15,6 @@ namespace Module5.Player
         public bool showPlayButton;
         public bool isOverrideFov;
         public float fov;
+        public VR360SphereType sphereType;
     }
 }

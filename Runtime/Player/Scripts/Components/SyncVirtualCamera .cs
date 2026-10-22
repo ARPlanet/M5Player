@@ -5,11 +5,10 @@ using UnityEngine;
 namespace Module5.Player
 {
     /// <summary>
-    /// 同步 AR Camera 投影矩陣；在非 AR（純 3D）模式下支援短邊 FOV 自適應
+    /// 虛擬相機（Virtual Camera）基礎控制器：支援短邊 FOV 自適應與外部 FOV 覆蓋（如 VR360 / VideoPlayer360）
     /// </summary>
     public class SyncVirtualCamera : MonoBehaviour
     {
-        public Camera arCamera;
         public Camera virtualCamera;
 
         [Header("FOV Settings (Non-AR Mode)")]
@@ -46,31 +45,21 @@ namespace Module5.Player
 
         /// <summary>
         /// 設定外部覆蓋 FOV（如 VideoPlayer360 / VR360）。
-        /// 當 isOverride 為 true 時，VirtualCamera 暫停同步 ARCamera 投影矩陣，改用自訂義覆蓋 FOV（且支援短邊自適應）；
-        /// 為 false 時恢復 AR 投影矩陣同步（非 AR 模式則恢復 defaultFov）。
+        /// 當 isOverride 為 true 時，VirtualCamera 使用自訂義覆蓋 FOV（且支援短邊自適應）；
+        /// 為 false 時恢復預設 FOV（或由衍生類別恢復 AR 同步）。
         /// </summary>
-        public void SetFovOverride(bool isOverride, float targetFov = 60f)
+        public virtual void SetFovOverride(bool isOverride, float targetFov = 60f)
         {
             isOverrideFov = isOverride;
             if (isOverride)
             {
                 overrideFov = targetFov;
-                if (virtualCamera != null)
-                {
-                    // 解除實體 AR 硬體投影矩陣，允許自訂 fieldOfView 生效
-                    virtualCamera.ResetProjectionMatrix();
-                }
             }
-            else
+            if (virtualCamera != null)
             {
-                if (virtualCamera != null && arCamera != null)
-                {
-                    // 恢復 AR 模式投影矩陣同步
-                    virtualCamera.ResetProjectionMatrix();
-                    SyncFromARCamera();
-                }
+                virtualCamera.ResetProjectionMatrix();
             }
-            UpdateFov();
+            OnCameraSync();
         }
 
         protected virtual void Awake()
@@ -83,19 +72,11 @@ namespace Module5.Player
 
         protected virtual void OnEnable()
         {
-            if (virtualCamera != null && arCamera != null && !isOverrideFov)
+            if (virtualCamera != null)
             {
                 virtualCamera.ResetProjectionMatrix();
-                SyncFromARCamera();
             }
-            else
-            {
-                if (virtualCamera != null)
-                {
-                    virtualCamera.ResetProjectionMatrix();
-                }
-                UpdateFov();
-            }
+            OnCameraSync();
             UnityEngine.Rendering.RenderPipelineManager.beginCameraRendering += OnBeginCameraRendering;
         }
 
@@ -110,27 +91,26 @@ namespace Module5.Player
 
         protected virtual void LateUpdate()
         {
-            // 在非 AR 模式 或 360 覆蓋 FOV 模式下，隨螢幕/視口長寬比動態調整 FOV
-            if (arCamera == null || isOverrideFov)
+            if (ShouldUpdateFovInLateUpdate())
             {
                 UpdateFov();
             }
+        }
+
+        /// <summary>
+        /// 控制 LateUpdate 中是否隨螢幕/視口長寬比動態調整 FOV。
+        /// 預設情況下（非 AR）每幀動態自適應；AR 模式可覆寫為在 AR 投影控制時暫停。
+        /// </summary>
+        protected virtual bool ShouldUpdateFovInLateUpdate()
+        {
+            return true;
         }
 
         private void OnBeginCameraRendering(UnityEngine.Rendering.ScriptableRenderContext context, Camera camera)
         {
             if (camera == virtualCamera && virtualCamera != null)
             {
-                if (arCamera != null && !isOverrideFov)
-                {
-                    // AR 模式且未覆蓋 FOV：同步 Near/Far 與真實硬體投影矩陣 (包含實體鏡頭 FOV)
-                    SyncFromARCamera();
-                }
-                else
-                {
-                    // 非 AR 模式 或 360 覆蓋 FOV 模式：使用自訂自適應 FOV
-                    UpdateFov();
-                }
+                OnCameraSync();
             }
         }
 
@@ -139,46 +119,24 @@ namespace Module5.Player
             // Fallback for Built-in Pipeline
             if (virtualCamera != null)
             {
-                if (arCamera != null && !isOverrideFov)
-                {
-                    SyncFromARCamera();
-                }
-                else
-                {
-                    UpdateFov();
-                }
+                OnCameraSync();
             }
         }
 
         /// <summary>
-        /// 同步 ARCamera 的裁剪面 (nearClipPlane, farClipPlane) 與投影矩陣 (projectionMatrix)。
-        /// 注意：必須先同步 near/far，最後再設定 projectionMatrix，避免被 Unity 內部重算矩陣覆蓋。
+        /// 相機同步核心生命週期。基類預設執行自適應 FOV；衍生類別（如 AR）可覆寫以執行實體相機投影同步。
         /// </summary>
-        public virtual void SyncFromARCamera()
+        protected virtual void OnCameraSync()
         {
-            if (virtualCamera == null || arCamera == null) return;
-
-            if (!Mathf.Approximately(virtualCamera.nearClipPlane, arCamera.nearClipPlane))
-            {
-                virtualCamera.nearClipPlane = arCamera.nearClipPlane;
-            }
-
-            if (!Mathf.Approximately(virtualCamera.farClipPlane, arCamera.farClipPlane))
-            {
-                virtualCamera.farClipPlane = arCamera.farClipPlane;
-            }
-
-            virtualCamera.projectionMatrix = arCamera.projectionMatrix;
+            UpdateFov();
         }
 
         /// <summary>
-        /// 短邊 FOV 自適應：支援外部覆蓋 FOV，橫擺時垂直鎖定目標 FOV，直立時水平鎖定目標 FOV
+        /// 短邊 FOV 自適應：橫擺時垂直鎖定目標 FOV，直立時水平鎖定目標 FOV
         /// </summary>
         public virtual void UpdateFov()
         {
             if (virtualCamera == null) return;
-            // 只有在 AR 模式 且 未覆蓋 FOV 時，才不干涉相機（完全交由 AR 實體投影矩陣控制）
-            if (arCamera != null && !isOverrideFov) return;
 
             float targetFov = CurrentTargetFov;
 
